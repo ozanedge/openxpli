@@ -1,0 +1,5 @@
+node_modules/
+
+# Local agent handoff notes — machine-specific, deliberately not published.
+AGENTS.md
+HANDOFF-TASKS.md

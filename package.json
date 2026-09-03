@@ -1,0 +1,32 @@
+{
+  "name": "openxpli",
+  "version": "0.13.3",
+  "description": "Open-source browser-agent experimentation engine: enroll processes in the tools you already use, run controlled one-variable experiments, merge winners like PRs.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "openxpli": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "web",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "playwright-core": "^1.62.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

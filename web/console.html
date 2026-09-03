@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenXPLI</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --surface-0:#F3F3F3; --surface-1:#F8F8F8; --surface-2:#FFFFFF;
+    --border-1:#E6E6E6; --border-2:#CCCCCC;
+    --text:#1D1D1D; --text-2:#6F6F6F;
+    --azure:#27A1FF; --azure-deep:#0072BE;
+    --green:#0B7A38; --scarlet:#D5391F;
+    --font:Inter,-apple-system,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--surface-1); color:var(--text); font-family:var(--font); font-size:13px; height:100vh; display:flex; flex-direction:column; }
+  a { color:var(--azure-deep); text-decoration:none; } a:hover { text-decoration:underline; }
+  .topbar { height:48px; display:flex; align-items:center; gap:10px; padding:0 18px; border-bottom:1px solid var(--border-1); flex-shrink:0; }
+  .logo { width:28px; height:28px; border-radius:6px; background:var(--text); display:flex; align-items:center; justify-content:center; }
+  .wordmark { font-weight:700; font-size:14px; letter-spacing:-0.01em; }
+  .spacer { flex:1; }
+  .hint { font-family:var(--mono); font-size:11px; color:var(--text-2); }
+  main { flex:1; display:flex; flex-direction:column; padding:16px 18px; gap:12px; min-height:0; overflow-y:auto; }
+  .headrow { display:flex; align-items:baseline; gap:14px; }
+  h1 { font-size:18px; font-weight:600; }
+  .sub { font-size:12px; color:var(--text-2); }
+  .seg { display:inline-flex; border:1px solid var(--border-2); border-radius:6px; overflow:hidden; margin-left:auto; }
+  .seg button { border:0; background:transparent; font:500 12px var(--font); padding:5px 11px; cursor:pointer; color:var(--text-2); }
+  .seg button.on { background:var(--text); color:#fff; }
+  .stage { display:flex; gap:12px; min-height:420px; }
+  .panel { flex:1; background:var(--surface-2); border:1px solid var(--border-1); border-radius:8px; padding:14px 16px; display:flex; flex-direction:column; min-width:0; }
+  .plabel { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--text-2); font-weight:500; }
+  #chartwrap { flex:1; position:relative; margin-top:10px; min-height:340px; }
+  .cards { width:240px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; }
+  .card { flex:1; background:var(--surface-2); border:1px solid var(--border-1); border-radius:8px; padding:10px 14px; display:flex; flex-direction:column; justify-content:center; }
+  .card .k { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--text-2); font-weight:500; }
+  .card .v { font:600 30px/1.15 var(--mono); margin-top:2px; }
+  .card .s { font-size:11px; color:var(--text-2); margin-top:2px; }
+  .good { color:var(--green); } .bad { color:var(--scarlet); }
+  .recs { background:var(--surface-2); border:1px solid var(--border-1); border-radius:8px; padding:12px 16px; }
+  .rec { display:flex; gap:12px; align-items:baseline; padding:7px 0; border-top:1px solid var(--border-1); }
+  .rec:first-of-type { border-top:0; }
+  .rec .id { font:500 12px var(--mono); color:var(--text-2); flex-shrink:0; }
+  .rec .t { font-weight:500; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .badge { font:500 10px var(--mono); text-transform:uppercase; letter-spacing:.05em; padding:2px 7px; border-radius:4px; flex-shrink:0; margin-left:auto; }
+  .b-validated { background:#E6F4EB; color:var(--green); }
+  .b-regressed, .b-reverted { background:#FBEAE6; color:var(--scarlet); }
+  .b-open { background:#FFF4DE; color:#8A6100; }
+  svg text { font-family:var(--mono); }
+  .tabs { display:flex; align-self:stretch; margin-left:14px; }
+  .tabs button { border:0; background:transparent; cursor:pointer; font:500 13px var(--font); color:var(--text-2); padding:0 12px; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tabs button.on { color:var(--text); border-bottom-color:var(--azure); }
+  .split { flex:1; display:flex; gap:12px; min-height:0; }
+  .tbl { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .tbl th { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--text-2); font-weight:600; text-align:left; padding:12px 14px; border-bottom:2px solid var(--border-1); background:#F8F8F8; }
+  .tbl td { padding:11px 14px; border-bottom:1px solid var(--border-1); }
+  .tbl tr.row { cursor:pointer; transition:background-color .2s; } 
+  .tbl tr.row:hover { background:#F0F9FF; }
+  .tbl tr.row.sel { background:#EAF4FE; }
+  .tbl tr.row.sel td { border-bottom-color:transparent; }
+  .tbl tr.row.sel td:first-child { box-shadow:inset 3px 0 0 var(--azure); }
+  .tbl tr.row:nth-child(even) { background:#F9F9F9; }
+  .tbl tr.row:nth-child(even):hover { background:#F0F9FF; }
+  .chev { display:inline-block; width:14px; color:var(--text-2); transition:transform .2s; font-size:10px; }
+  tr.row.sel .chev { transform:rotate(90deg); color:var(--azure-deep); }
+  tr.detailrow > td { padding:0 !important; background:var(--surface-1); }
+  .procpanel { border-left:3px solid var(--azure); animation:panelIn .3s cubic-bezier(.22,1,.36,1); }
+  @keyframes panelIn { from { opacity:0; transform:translateY(-8px) } to { opacity:1; transform:none } }
+  .phead { display:flex; align-items:center; gap:10px; padding:11px 18px; border-bottom:1px solid var(--border-1); background:rgba(39,161,255,.07); }
+  .phead .pid { font:600 13px var(--mono); }
+  .pbody { padding:16px 18px 20px; }
+  .mono { font-family:var(--mono); font-size:12px; }
+  .detail { width:380px; flex-shrink:0; background:var(--surface-2); border:1px solid var(--border-1); border-radius:8px; padding:16px; overflow-y:auto; }
+  .kv { border:1px solid var(--border-1); border-radius:6px; margin-top:6px; }
+  .kv div { display:flex; justify-content:space-between; gap:10px; padding:6px 10px; border-top:1px solid var(--border-1); font-size:12px; }
+  .kv div:first-child { border-top:0; }
+  .kv .val { font-family:var(--mono); text-align:right; }
+  .sect { margin-top:16px; }
+  .reclist { width:320px; flex-shrink:0; display:flex; flex-direction:column; gap:6px; overflow-y:auto; }
+  .recitem { background:var(--surface-2); border:1px solid var(--border-1); border-radius:6px; padding:9px 12px; cursor:pointer; }
+  .recitem:hover { background:#E8F5FF; } .recitem.sel { border-color:var(--azure); background:#D7E9FA; }
+  .recbody { flex:1; width:auto; font-size:13px; line-height:1.55; }
+  .recbody h2 { font-size:16px; margin:0 0 8px; } .recbody h3 { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--text-2); margin:18px 0 6px; }
+  .recbody li { margin-left:16px; } .recbody table { border-collapse:collapse; margin:4px 0; }
+  .recbody td, .recbody th { border:1px solid var(--border-1); padding:4px 10px; font-family:var(--mono); font-size:11.5px; }
+  .recbody code { font-family:var(--mono); background:var(--surface-1); padding:1px 4px; border-radius:3px; font-size:12px; }
+  .btn { border:1px solid var(--border-2); background:var(--surface-2); border-radius:8px; font:500 12.5px var(--font); padding:6px 14px; cursor:pointer; color:var(--text); }
+  .btn:hover { background:var(--surface-1); }
+  .btn.primary { background:var(--text); border-color:var(--text); color:#fff; } .btn.primary:hover { background:#444; }
+  .btn.danger { color:var(--scarlet); border-color:#E8B7AD; } .btn.danger:hover { background:#FBEAE6; }
+  .btn.ghost { border-color:transparent; color:var(--text-2); }
+  .b-merged { background:#E6F4EB; color:var(--green); }
+  .b-rejected { background:#EDEDED; color:var(--text-2); }
+  .shade { position:fixed; inset:0; background:#000000A3; display:flex; align-items:center; justify-content:center; z-index:10; }
+  .modal { width:760px; max-width:92vw; max-height:88vh; overflow-y:auto; background:var(--surface-2); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.12); padding:20px 24px; }
+  .ab { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+  .ab > div { border:1px solid var(--border-2); border-radius:8px; padding:12px 14px; }
+  .ab .exp { border-color:var(--azure); }
+  .ab .lbl { font:500 10px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--text-2); }
+  .ab .exp .lbl { color:var(--azure-deep); }
+  .ab .big { font:600 24px var(--mono); margin-top:6px; }
+  .mut { font-family:var(--mono); font-size:12px; background:var(--surface-1); border-radius:6px; padding:9px 12px; margin-top:10px; }
+  .stat4 { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px; }
+  .stat4 > div { border:1px solid var(--border-1); border-radius:6px; padding:8px 10px; }
+  .stat4 .k { font-size:10px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-2); }
+  .stat4 .v { font:600 14px var(--mono); margin-top:3px; }
+  .sortable { cursor:pointer; user-select:none; } .sortable:hover { color:var(--text); }
+  .csection { font-size:13.5px; color:var(--text-2); margin:12px 0 8px; }
+  .ccard { border:1px solid var(--border-1); border-radius:12px; background:var(--surface-2); margin-bottom:8px; }
+  .cgroup { border:1px solid var(--border-1); border-radius:12px; background:var(--surface-2); margin-bottom:8px; }
+  .cgroup .crow + .crow { border-top:1px solid var(--border-1); }
+  .crow { display:flex; align-items:center; gap:14px; padding:14px 18px; }
+  .crow > div:first-child { flex:1; }
+  .cchip { font:500 10px var(--mono); letter-spacing:.06em; background:var(--surface-1); border:1px solid var(--border-1); border-radius:4px; padding:2px 6px; color:var(--text-2); }
+  .cstate { font:600 11px var(--mono); letter-spacing:.06em; color:var(--green); display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .cdot { width:7px; height:7px; border-radius:50%; background:var(--green); display:inline-block; }
+  .steps { display:flex; align-items:center; gap:0; margin:2px 0 4px; flex-wrap:wrap; }
+  .step { display:flex; align-items:center; gap:7px; }
+  .stepn { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font:600 11px var(--mono); border:1.5px solid var(--border-2); color:var(--text-2); background:var(--surface-2); flex-shrink:0; }
+  .step.done .stepn { background:var(--green); border-color:var(--green); color:#fff; }
+  .step.now .stepn { background:var(--azure); border-color:var(--azure); color:#fff; }
+  .steplbl { font-size:12px; color:var(--text-2); font-weight:500; white-space:nowrap; }
+  .step.done .steplbl, .step.now .steplbl { color:var(--text); }
+  .step.now .steplbl { font-weight:600; }
+  .stepbar { width:34px; height:1.5px; background:var(--border-2); margin:0 10px; flex-shrink:0; }
+  .step.done + .stepbar { background:var(--green); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+  .pulsing { animation:pulse 1.6s ease-in-out infinite; }
+  /* ── journey ── */
+  .journey { position:relative; margin:8px 0 16px; }
+  .jrail { position:absolute; top:17px; left:49px; right:49px; height:3px; background:var(--border-1); border-radius:2px; }
+  .jfill { position:absolute; top:17px; left:49px; height:3px; border-radius:2px; background:linear-gradient(90deg, var(--green), var(--azure)); transition:width .9s cubic-bezier(.22,1,.36,1); }
+  .jsteps { position:relative; display:flex; justify-content:space-between; }
+  .jstep { display:flex; flex-direction:column; align-items:center; gap:15px; width:98px; text-align:center; }
+  .jnode { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font:600 14px var(--mono); background:var(--surface-2); border:2px solid var(--border-2); color:var(--text-2); transition:all .4s; position:relative; }
+  .jstep.done .jnode { background:var(--green); border-color:var(--green); color:#fff; animation:nodePop .45s cubic-bezier(.34,1.56,.64,1); }
+  .jstep.now .jnode { background:var(--azure); border-color:var(--azure); color:#fff; box-shadow:0 0 0 6px rgba(39,161,255,.15); animation:nodePop .45s cubic-bezier(.34,1.56,.64,1); }
+  .jnode { position:relative; z-index:0; }
+  .jr { position:absolute; left:50%; top:50%; width:64px; height:64px; margin:-32px 0 0 -32px; overflow:visible; pointer-events:none; z-index:-1; }
+  .jr-sweep { transform-origin:30px 30px; animation:turbine 2.4s linear infinite; }
+  .jr-track { fill:none; stroke:var(--border-1); stroke-width:2; }
+  .jstep.now .jnode { box-shadow:0 0 0 5px rgba(39,161,255,.12); }
+  @keyframes turbine { to { transform:rotate(360deg) } }
+  @keyframes nodePop { 0%{transform:scale(.6)} 70%{transform:scale(1.15)} 100%{transform:scale(1)} }
+  .jlbl { font-size:11px; font-weight:600; color:var(--text-2); }
+  .autobanner { border:1px solid #BFE4CD; background:#EAF6EF; border-radius:8px; padding:10px 14px; font-size:12.5px; }
+  .collhead { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; padding:2px 0; }
+  .collhead:hover .plabel { color:var(--text); }
+  .explist { border:1px solid var(--border-1); border-radius:8px; background:var(--surface-2); margin-top:8px; }
+  .exprow { display:flex; align-items:center; gap:12px; padding:10px 14px; }
+  .exprow + .exprow { border-top:1px solid var(--border-1); }
+  .exprow .badge { margin-left:0; flex-shrink:0; }
+  .jstep.done .jlbl, .jstep.now .jlbl { color:var(--text); }
+  .jsub { font-size:10px; color:var(--text-2); }
+  /* ── analysis ring card ── */
+  .analyzing-card { display:flex; align-items:center; gap:16px; border:1px solid var(--border-1); border-radius:10px; padding:14px 18px; background:linear-gradient(120deg, var(--surface-2) 30%, #F1FAFF 50%, var(--surface-2) 70%); background-size:200% 100%; animation:shimmer 2.6s linear infinite; }
+  @keyframes shimmer { from{background-position:200% 0} to{background-position:-200% 0} }
+  .ringwrap { position:relative; width:52px; height:52px; flex-shrink:0; }
+  .ringwrap svg { transform:rotate(-90deg); }
+  .ringpct { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font:600 11px var(--mono); color:var(--azure-deep); }
+  /* ── candidate reveal ── */
+  .cand { border:1px solid var(--border-1); border-radius:8px; padding:12px 14px; background:var(--surface-2); opacity:0; animation:riseIn .5s cubic-bezier(.22,1,.36,1) forwards; position:relative; transition:box-shadow .2s, transform .2s; }
+  .cand:hover { box-shadow:0 6px 18px rgba(28,28,24,.08); transform:translateY(-1px); }
+  .cand:nth-child(1){ animation-delay:.05s } .cand:nth-child(2){ animation-delay:.18s } .cand:nth-child(3){ animation-delay:.31s }
+  @keyframes riseIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
+  .bestbet { position:absolute; top:-9px; right:10px; font:600 9.5px var(--mono); letter-spacing:.06em; background:var(--green); color:#fff; border-radius:4px; padding:2px 8px; }
+  /* ── toast + confetti ── */
+  .toast { position:fixed; bottom:22px; right:22px; z-index:60; background:var(--text); color:#fff; border-radius:10px; padding:12px 18px; font:500 13px var(--font); box-shadow:0 10px 28px rgba(0,0,0,.22); animation:riseIn .35s cubic-bezier(.22,1,.36,1); max-width:340px; }
+  .toast b { color:#8CE0B0; }
+  #confetti { position:fixed; inset:0; pointer-events:none; z-index:55; }
+  @media (prefers-reduced-motion: reduce){ .jnode, .jfill, .cand, .analyzing-card, .jr-sweep { animation:none !important; transition:none !important } }
+  .b-analyzing { background:#E8F5FF; color:var(--azure-deep); }
+  .b-choose { background:#FFF4DE; color:#8A6100; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="#fff" fill-rule="evenodd" stroke="#fff" stroke-width="1.1" stroke-linejoin="round" d="M16.6 12 L17.09 17.09 L15.47 15.47 L12 19.7 L12 17.22 L6.2 17.8 L8.09 15.91 L3.3 12 L6.16 12 L5.49 5.49 L7.65 7.65 L12 2.3 L12 5.54 L19.21 4.79 L16.79 7.21 L22.7 12 Z M14.6 12 A2.6 2.6 0 1 0 9.4 12 A2.6 2.6 0 1 0 14.6 12 Z"/></svg></div>
+    <span class="wordmark">OpenXPLI</span>
+    <nav class="tabs" id="tabs"></nav>
+    <div class="spacer"></div>
+    <span class="hint">localhost · read-only console</span>
+  </div>
+  <main id="view-experiments">
+    <div class="headrow">
+      <h1>Experiments</h1>
+      <span class="sub">Every experiment runs one week — 168 hourly reads against control. End above ×1.00 and the variant is adopted; below, it dies. Winners keep a 5% holdout for 14 days.</span>
+      <span style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn" onclick="location='/api/export.csv?days='+days">Export</button>
+        <button class="btn primary" onclick="reviewOpen()">Review open decision</button>
+      </span>
+    </div>
+    <div class="stage">
+      <div class="panel">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="plabel" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Experiments · multiple vs control</span>
+          <span class="seg" id="modeseg"></span>
+          <span class="seg" id="lookback"></span>
+        </div>
+        <div id="chartwrap"></div>
+        <div id="tablewrap" style="display:none;flex:1;overflow:auto;margin-top:10px"></div>
+      </div>
+      <div class="cards" id="cards"></div>
+    </div>
+  </main>
+
+  <main id="view-processes" style="display:none">
+    <div class="headrow">
+      <h1>Connectors</h1><span class="sub">Every connector initializes safely in shadow mode with read-only permissions. OpenXPLI analyzes it and suggests experiments; you accept each one to start it.</span>
+      <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <input id="proc-search" placeholder="Filter connectors…" oninput="renderProcesses(window.__procs||[])"
+          style="width:220px;border:1px solid var(--border-2);border-radius:8px;padding:6px 10px;font:12.5px var(--font);background:var(--surface-2)">
+        <button class="btn primary" onclick="openConnectors()">Add Connector</button>
+      </span>
+    </div>
+    <div class="panel" style="padding:0;flex:1;overflow-y:auto">
+      <table class="tbl" id="proc-table"></table>
+    </div>
+  </main>
+
+  <main id="view-ledger" style="display:none">
+    <div class="headrow"><h1>Events</h1><span class="sub">Every decision, hypothesis → evidence → statistics → action → revert. History is git; it cannot be quietly rewritten.</span></div>
+    <div class="split">
+      <div class="reclist" id="rec-list"></div>
+      <div class="detail recbody" id="rec-detail"></div>
+    </div>
+  </main>
+<script>
+const TOKEN = "__OPENXPLI_TOKEN__";
+const PALETTE = ["#7C5CFF","#0B7A38","#E86A8A","#0072BE","#C9A227","#E07830","#4C9A9A"];
+let days = 30, mode = "chart", sortKey = "started_at", sortDir = -1, exOpen = null, EXPS = [];
+
+async function j(u){
+  try { const r = await fetch(u); if (!r.ok) throw new Error("HTTP " + r.status); hideDead(); return r.json(); }
+  catch (e) { showDead(); throw e; }
+}
+let deadTimer = null;
+function showDead(){
+  if (!document.getElementById("deadbar")){
+    const d = document.createElement("div");
+    d.id = "deadbar";
+    d.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99;background:#D5391F;color:#fff;font:500 12.5px Inter,sans-serif;padding:8px 16px;text-align:center";
+    d.textContent = "Lost connection to openxpli — retrying… (if this persists, run `openxpli ui` in a terminal)";
+    document.body.appendChild(d);
+  }
+  // Self-heal: poll until the server is back, then reload state.
+  if (!deadTimer) deadTimer = setInterval(async () => {
+    try {
+      const r = await fetch("/api/summary");
+      if (r.ok){ clearInterval(deadTimer); deadTimer = null; hideDead(); refresh(); }
+    } catch { /* still down */ }
+  }, 4000);
+}
+function hideDead(){ document.getElementById("deadbar")?.remove(); }
+async function post(path, body){
+  let r;
+  try { r = await fetch(path, { method:"POST", headers:{ "content-type":"application/json", "x-openxpli-token": TOKEN }, body: JSON.stringify(body) }); }
+  catch (e) { showDead(); throw e; }
+  const d = await r.json();
+  if (!r.ok || d.error){ alert((d.error || "request failed") + "\n\nThe view may have been out of date — refreshing it now."); refresh(); } else refresh();
+  return d;
+}
+
+function fmtX(m, digits=2){ return "×" + Number(m).toFixed(digits); }
+
+function renderCards(s){
+  const winRate = s.winRate == null ? "—" : Math.round(s.winRate*100) + "%";
+  const blended = s.blendedMultiple == null ? "—" : fmtX(s.blendedMultiple);
+  const cards = [
+    ["Active processes", s.processes, `across ${s.tools} tool${s.tools===1?"":"s"}, 0 integrations`],
+    ["Experiments won", s.won, `${s.failed} failed`],
+    ["Blended multiple", blended, "compounded across won experiments", s.blendedMultiple > 1 ? "good" : ""],
+    ["Win rate", winRate, `${s.won} of ${s.won+s.failed} beat control`, s.winRate > 0.5 ? "good" : ""],
+    ["Regressions caught", s.regressionsCaught, `${s.validated} holdout${s.validated===1?"":"s"} validated`, s.regressionsCaught > 0 ? "bad" : ""],
+    ["Observations", s.observations, `${s.gaps} recorded gap${s.gaps===1?"":"s"}`],
+  ];
+  document.getElementById("cards").innerHTML = cards.map(([k,v,sub,cls]) =>
+    `<div class="card"><div class="k">${k}</div><div class="v ${cls||""}">${v}</div><div class="s">${sub}</div></div>`).join("");
+}
+
+function renderChart(exps){
+  const wrap = document.getElementById("chartwrap");
+  const W = wrap.clientWidth || 900, H = Math.max(340, wrap.clientHeight);
+  const padL = 44, padR = 130, padT = 10, padB = 22;
+  const now = Date.now(), t0 = now - days*86400000;
+  let lo = 0.97, hi = 1.03;
+  for (const e of exps) for (const o of e.series) if (o.multiple != null) { lo = Math.min(lo, o.multiple); hi = Math.max(hi, o.multiple); }
+  lo -= 0.01; hi += 0.01;
+  const x = ts => padL + (ts - t0) / (now - t0) * (W - padL - padR);
+  const y = m => padT + (hi - m) / (hi - lo) * (H - padT - padB);
+  let g = "";
+  // regression zone below x1.00
+  if (1 < hi && 1 > lo) g += `<rect x="${padL}" y="${y(1)}" width="${W-padL-padR}" height="${y(lo)-y(1)}" fill="#D5391F" opacity="0.06"/>`;
+  // y grid
+  const step = (hi-lo) > 0.25 ? 0.1 : (hi-lo) > 0.1 ? 0.05 : 0.02;
+  for (let m = Math.ceil(lo/step)*step; m <= hi; m += step) {
+    const isBase = Math.abs(m-1) < step/4;
+    g += `<line x1="${padL}" x2="${W-padR}" y1="${y(m)}" y2="${y(m)}" stroke="${isBase?"#6F6F6F":"#E6E6E6"}" stroke-width="1" ${isBase?'stroke-dasharray="5 4"':""}/>`;
+    g += `<text x="${padL-6}" y="${y(m)+3.5}" text-anchor="end" font-size="10.5" fill="${m<0.999?"#D5391F":"#6F6F6F"}" ${isBase?'font-weight="600"':""}>${fmtX(m, step<0.05?2:2)}</text>`;
+  }
+  // week separators
+  for (let d = 7; d < days; d += 7) {
+    const ts = t0 + d*86400000;
+    g += `<line x1="${x(ts)}" x2="${x(ts)}" y1="${padT}" y2="${H-padB}" stroke="#E6E6E6" stroke-dasharray="2 4"/>`;
+    g += `<text x="${x(ts)}" y="${H-8}" text-anchor="middle" font-size="10.5" fill="#6F6F6F">${d}d</text>`;
+  }
+  // series
+  const procColor = {}; let ci = 0;
+  exps.forEach((e, ei) => {
+    if (!(e.process_id in procColor)) procColor[e.process_id] = PALETTE[ci++ % PALETTE.length];
+    const c = procColor[e.process_id];
+    const run = e.series.filter(o => o.phase === "run" && o.multiple != null);
+    const hold = e.series.filter(o => o.phase === "holdout" && o.multiple != null);
+    const pts = arr => arr.map(o => `${x(e.started_at + o.hour*3600000).toFixed(1)},${y(o.multiple).toFixed(1)}`).join(" ");
+    // ±3σ envelope after hour 24 (the confidence funnel), pinched at the end
+    const band = run.filter(o => o.hour > 24 && o.sigma != null);
+    if (band.length > 2) {
+      const up = band.map(o => `${x(e.started_at + o.hour*3600000).toFixed(1)},${y(o.multiple + 3*o.sigma).toFixed(1)}`);
+      const dn = band.slice().reverse().map(o => `${x(e.started_at + o.hour*3600000).toFixed(1)},${y(o.multiple - 3*o.sigma).toFixed(1)}`);
+      g += `<polygon points="${up.join(" ")} ${dn.join(" ")}" fill="${c}" opacity="0.16"/>`;
+    }
+    if (run.length) g += `<polyline points="${pts(run)}" fill="none" stroke="${c}" stroke-width="1.6" vector-effect="non-scaling-stroke"/>`;
+    if (hold.length) g += `<polyline points="${pts(hold)}" fill="none" stroke="${c}" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.75"/>`;
+    const lastAll = [...run, ...hold]; const last = lastAll[lastAll.length-1];
+    if (!last) return;
+    const ex = x(e.started_at + last.hour*3600000), ey = y(last.multiple);
+    if (e.status !== "running") {
+      const vc = e.status === "won" ? "#0B7A38" : "#D5391F";
+      g += `<circle cx="${ex}" cy="${ey}" r="3.2" fill="${vc}" style="cursor:pointer" onclick="openExp(${ei})"/>`;
+    }
+    const label = e.id, mult = e.status === "running" ? fmtX(last.multiple)+"…" : fmtX(e.final_multiple ?? last.multiple);
+    const mc = e.status === "running" ? "#6F6F6F" : (e.final_multiple > 1 ? "#0B7A38" : "#D5391F");
+    const ho = e.holdout ? (e.holdout.status === "validated" ? " ✓" : e.holdout.status === "regressed" ? " ✗" : e.holdout.status === "cancelled" ? "" : " …") : "";
+    g += `<text x="${Math.min(ex+6, W-4)}" y="${ey+3.5}" font-size="10" fill="#6F6F6F" style="cursor:pointer" onclick="openExp(${ei})">${label} <tspan font-weight="600" fill="${mc}">${mult}</tspan><tspan fill="${e.holdout && e.holdout.status==="regressed" ? "#D5391F" : "#0B7A38"}">${ho}</tspan></text>`;
+  });
+  wrap.innerHTML = `<svg width="${W}" height="${H}" style="position:absolute;inset:0">${g}</svg>`;
+}
+
+// ── table mode ──
+const COLS = [
+  ["id","Experiment"],["started_at","Started"],["ends_at","Ended"],["run_hours","Days"],["status","Status"],
+  ["field","Change tested"],["metric","Metric"],["final_multiple","Multiple"],["p_improvement","P(imp)"],
+];
+function renderTable(exps){
+  const d10 = ts => new Date(ts).toISOString().slice(2,10).replace(/-/g,"");
+  const rows = exps.slice().sort((a,b) => {
+    let va = a[sortKey], vb = b[sortKey];
+    if (sortKey === "final_multiple") { va = va ?? lastMult(a); vb = vb ?? lastMult(b); }
+    if (va == null) return 1; if (vb == null) return -1;
+    return (typeof va === "string" ? va.localeCompare(vb) : va - vb) * sortDir;
+  });
+  document.getElementById("tablewrap").innerHTML = `<table class="tbl"><tr>${
+    COLS.map(([k,l]) => `<th class="sortable" onclick="sortBy('${k}')">${l}${k===sortKey ? (sortDir>0?" ↑":" ↓") : ""}</th>`).join("")
+  }</tr>${rows.map(e => {
+    const m = e.final_multiple ?? lastMult(e);
+    const badge = e.status === "won" ? "validated" : e.status === "failed" ? "regressed" : "open";
+    return `<tr class="row" onclick="openExp(${EXPS.indexOf(e)})">
+      <td class="mono">${e.id}</td><td class="mono">${d10(e.started_at)}</td>
+      <td class="mono">${e.status === "running" ? "—" : d10(e.ends_at)}</td>
+      <td class="mono">${Math.round(e.run_hours/24)}d</td>
+      <td><span class="badge b-${badge}">${e.status}</span></td>
+      <td>${e.field}: ${e.variant_value}</td><td>${e.metric}</td>
+      <td class="mono ${m>1?"good":"bad"}" style="font-weight:600">${m==null?"—":fmtX(m)}</td>
+      <td class="mono">${e.p_improvement==null?"—":Math.round(e.p_improvement*100)+"%"}</td></tr>`;
+  }).join("")}</table>`;
+}
+function lastMult(e){ const r = e.series.filter(o => o.multiple != null); return r.length ? r[r.length-1].multiple : null; }
+function sortBy(k){
+  if (sortKey === k) sortDir = -sortDir;
+  else { sortKey = k; sortDir = (k === "id" || k === "status" || k === "field" || k === "metric") ? 1 : -1; }
+  renderTable(EXPS);
+}
+
+// ── experiment modal ──
+function openExp(i){ exOpen = i; renderModal(); }
+function closeExp(){ exOpen = null; renderModal(); }
+function renderModal(){
+  let el = document.getElementById("modal-root");
+  if (!el){ el = document.createElement("div"); el.id = "modal-root"; document.body.appendChild(el); }
+  const e = exOpen == null ? null : EXPS[exOpen];
+  if (!e){ el.innerHTML = ""; return; }
+  const m = e.final_multiple ?? lastMult(e);
+  const running = e.status === "running";
+  const dayN = Math.min(Math.ceil((Date.now() - e.started_at)/86400000), Math.round(e.run_hours/24));
+  const badge = e.status === "won" ? "validated" : e.status === "failed" ? "regressed" : "open";
+  const gr = (e.policy && e.policy.guardrails) ? `${e.policy.guardrails.length} declared` : "—";
+  const br = (e.policy && e.policy.blast_radius) ? e.policy.blast_radius : "—";
+  const d = ts => new Date(ts).toISOString().slice(0,10);
+  el.innerHTML = `<div class="shade" onclick="closeExp()"><div class="modal" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="mono" style="font-weight:600;font-size:14px">${e.id}</span>
+      <span class="badge b-${badge}">${e.status}</span>
+      <button class="btn ghost" style="margin-left:auto" onclick="closeExp()">×</button>
+    </div>
+    <div class="sub" style="margin-top:6px">Testing <b>${e.field}</b> · metric: <code>${e.metric}</code> · started ${d(e.started_at)} · ${running ? "in flight" : "ended " + d(e.ends_at)}</div>
+    <div class="ab">
+      <div><span class="lbl">A · Control</span><div style="margin-top:6px;font-size:13px">${e.control_value}</div><div class="sub">unchanged</div><div class="big">1.00×</div><div class="sub">baseline</div></div>
+      <div class="exp"><span class="lbl">B · Experiment</span><div style="margin-top:6px;font-size:13px">${e.variant_value}</div><div class="sub">single mutation</div>
+        <div class="big ${m>1?"good":"bad"}">${m==null?"—":fmtX(m)}</div>
+        <div class="sub">${running ? `current · day ${dayN} of ${Math.round(e.run_hours/24)}` : e.status === "won" ? "final · variant adopted" : "final · reverted, not adopted"}</div></div>
+    </div>
+    <div class="mut">${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
+    <div class="stat4">
+      <div><div class="k">P(improvement)</div><div class="v">${e.p_improvement==null?"—":Math.round(e.p_improvement*100)+"%"}</div></div>
+      <div><div class="k">Runtime</div><div class="v">${running ? dayN + "d of " + Math.round(e.run_hours/24) + "d" : Math.round(e.run_hours/24) + "d"}</div></div>
+      <div><div class="k">Guardrails</div><div class="v">${gr}</div></div>
+      <div><div class="k">Blast radius</div><div class="v" style="font-size:12px">${br}</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px">
+      ${!running && e.record_id ? `<button class="btn ghost" onclick="closeExp();openRecord('${e.record_id}')">Open ledger record →</button>` : ""}
+      ${running ? `<button class="btn danger" onclick="if(confirm('Kill ${e.id}? The variant is reverted.')) post('/api/kill',{experiment:'${e.id}'}).then(closeExp)">Kill experiment</button>` : ""}
+      ${running ? `<button class="btn ghost" onclick="post('/api/extend',{experiment:'${e.id}',days:7}).then(closeExp)">Request more runtime</button>` : ""}
+      <span style="flex:1"></span>
+      <button class="btn primary" onclick="closeExp()">Close</button>
+    </div>
+  </div></div>`;
+}
+function reviewOpen(){
+  j("/api/records").then(recs => {
+    const open = recs.filter(r => r.outcome === "open");
+    if (!open.length) return alert("No open decisions — everything is reviewed.");
+    selRec = open[0].id; setView("ledger");
+  });
+}
+
+// ── tabs / views ──
+const VIEWS = ["experiments","ledger","processes"];
+const LABELS = { experiments:"Experimentation", processes:"Connectors", ledger:"Events" };
+const CATALOG = [
+  ["ChatGPT Ads","ads-openai","Clone campaigns, tune bids and creative in ads.openai.com","https://ads.openai.com"],
+  ["Klaviyo","klaviyo","Flows, campaigns, subject lines and send times","https://www.klaviyo.com/login"],
+  ["Mailchimp","mailchimp","Campaign copy, audiences and send schedules","https://login.mailchimp.com"],
+  ["HubSpot","hubspot","Sequences, lead routing and follow-up timing","https://app.hubspot.com/login"],
+  ["Intercom","intercom","Onboarding messages, bots and tours","https://app.intercom.com"],
+  ["Zendesk","zendesk","Triage, routing rules and macros","https://www.zendesk.com/login/"],
+  ["Meta Ads","meta-ads","Ad sets, creative and audience splits","https://business.facebook.com"],
+  ["GitHub","github","READMEs, docs and release notes","https://github.com/login"],
+];
+let view = "experiments", selProc = null, selRec = null;
+function renderTabs(){
+  document.getElementById("tabs").innerHTML = VIEWS.map(v =>
+    `<button class="${v===view?"on":""}" onclick="setView('${v}')">${LABELS[v]}</button>`).join("");
+  for (const v of VIEWS) document.getElementById("view-"+v).style.display = v===view ? "" : "none";
+}
+function setView(v){ view = v; refresh(); }
+
+// ── connectors view ──
+function renderProcesses(all){
+  window.__stages = window.__stages || {};
+  for (const p of all){
+    const st = stageOf(p), prev = window.__stages[p.id];
+    if (prev != null && st > prev) celebrate(p, prev, st);
+    window.__stages[p.id] = st;
+  }
+  window.__procs = all;
+  const q = (document.getElementById("proc-search")?.value ?? "").toLowerCase();
+  const procs = q ? all.filter(p => (p.id + " " + p.tool + " " + p.metric).toLowerCase().includes(q)) : all;
+  if (window.__procInit == null && procs.length){ selProc = procs[0].id; window.__procInit = 1; }
+  if (selProc != null && !procs.some(p => p.id === selProc)) selProc = null;
+  const fmtWhen = ts => ts ? new Date(ts).toISOString().slice(0,10) : "—";
+  document.getElementById("proc-table").innerHTML =
+    `<tr><th>Connector</th><th>Tool</th><th>Status</th><th>Autonomy</th><th>Δ vs control</th><th>Updated</th></tr>` +
+    procs.map(p => {
+      const m = p.latest?.final_multiple ?? p.latest?.last_multiple;
+      const cls = m == null ? "" : m > 1 ? "good" : "bad";
+      const sel = p.id === selProc;
+      const st = p.status === "shadow" ? ["learning","analyzing pulsing"]
+        : p.status === "proposed" ? ["choose experiment","choose"]
+        : p.status === "reverted" ? ["reverted","regressed"]
+        : p.latest?.status === "running" ? ["experiment running","open"] : ["running","validated"];
+      const row = `<tr class="row ${sel?"sel":""}" onclick="selectProc('${p.id}')">
+        <td class="mono"><span class="chev">▸</span>${p.id}</td><td>${p.tool}</td>
+        <td><span class="badge b-${st[1]}">${st[0]}</span></td>
+        <td>${p.autonomy}</td><td class="mono ${cls}">${m==null?"—":fmtX(m)}</td>
+        <td class="mono">${fmtWhen(p.latest?.updated)}</td></tr>`;
+      return row + (sel ? `<tr class="detailrow"><td colspan="6"><div class="procpanel">
+        <div class="phead"><span class="chev" style="transform:rotate(90deg);color:var(--azure-deep)">▸</span>
+          <span class="pid">${p.id}</span><span class="cchip">${p.tool}</span><span class="cchip">${p.autonomy}</span>
+          <span style="flex:1"></span>
+          <button class="btn ghost" style="padding:3px 10px" onclick="event.stopPropagation();selProc=null;renderProcesses(window.__procs||[])">✕ Close</button>
+        </div>
+        <div class="pbody">${procDetail(p)}</div>
+      </div></td></tr>` : "");
+    }).join("");
+  if (!procs.length) document.getElementById("proc-table").innerHTML +=
+    `<tr><td colspan="6" style="padding:18px" class="sub">No connectors yet — Add Connector to begin.</td></tr>`;
+}
+const OPENXPLI_SVG = `<svg class="jr" viewBox="0 0 60 60">
+  <defs><linearGradient id="jrg" x1="30" y1="5" x2="54.6" y2="34.3" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="var(--azure)" stop-opacity="0"/>
+    <stop offset="1" stop-color="var(--azure)" stop-opacity="1"/>
+  </linearGradient></defs>
+  <circle class="jr-track" cx="30" cy="30" r="25"/>
+  <g class="jr-sweep">
+    <path d="M30 5 A25 25 0 0 1 54.6 34.3" fill="none" stroke="url(#jrg)" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="54.6" cy="34.3" r="5" fill="var(--azure)" opacity="0.22"/>
+    <circle cx="54.6" cy="34.3" r="2.4" fill="var(--azure)"/>
+  </g>
+</svg>`;
+function stageOf(p){
+  if (p.autonomy === "auto-merge") return 6;
+  if (p.autonomy === "auto-start") return 5;
+  if (p.latest && (p.latest.status === "running" || p.latest.status === "launching")) return 3;
+  if (p.latest) return 4; // first experiment decided; next rungs are earned
+  if (p.status === "proposed") return 2;
+  return 1;
+}
+function stepper(p){
+  const st = stageOf(p);
+  const auto = p.autonomy === "auto-start" || p.autonomy === "auto-merge";
+  const steps = [
+    ["Connected","read-only"], ["Learning","analyzing the connector"],
+    ["Choose experiment","top 3 suggestions"], ["Experiment running","hourly reads vs control"],
+    ["Self-starting","starts its own experiments"], ["Autonomous","merges winners, keeps iterating"],
+  ];
+  // done: everything below the current rung; steady autonomy rungs show as active
+  const doneN = p.autonomy === "auto-merge" ? 6 : p.autonomy === "auto-start" ? 5
+    : (p.latest && p.latest.status !== "running" && p.latest.status !== "launching") ? 4 : Math.max(1, st - 1);
+  const activeN = p.autonomy === "auto-merge" ? 6 : p.autonomy === "auto-start" ? 5 : (st <= 3 ? st + (p.status==="shadow"||p.status==="proposed"||p.latest?.status==="running" ? 1 : 0) - (st===1?0:1) : 0);
+  // simpler: active node = current stage when not yet earned-autonomy
+  const act = auto ? (p.autonomy === "auto-merge" ? 6 : 5)
+    : (p.latest && (p.latest.status === "running" || p.latest.status === "launching")) ? 4
+    : p.status === "shadow" ? 2 : p.status === "proposed" ? 3 : 0;
+  const fill = ((Math.max(doneN, act) - 1) / 5) * 100;   // land exactly on node centers
+  return `<div class="journey">
+    <div class="jrail"></div>
+    <div class="jfill" style="width:calc((100% - 98px) * ${Math.min(100,fill)/100})"></div>
+    <div class="jsteps">${steps.map(([lbl, sub], i) => {
+      const n = i + 1;
+      const done = n <= doneN && n !== act;
+      const now = n === act;
+      return `<span class="jstep ${done?"done":""} ${now?"now":""}">
+        <span class="jnode">${done ? "✓" : n}${now ? OPENXPLI_SVG : ""}</span>
+        <span class="jlbl">${lbl}</span><span class="jsub">${sub}</span>
+      </span>`;
+    }).join("")}</div></div>`;
+}
+function procDetail(p){
+  const analyzing = p.status === "shadow";
+  const window_ = Math.max(1, (p.analyze_eta ?? 0) - (p.created_at ?? 0));
+  const pct = Math.min(99, Math.max(3, Math.round((1 - ((p.analyze_eta ?? 0) - Date.now()) / window_) * 100)));
+  const C = 2 * Math.PI * 22;
+  const analyzeNote = analyzing ? `
+    <div class="sect analyzing-card" style="margin-top:12px">
+      <div class="ringwrap">
+        <svg width="52" height="52"><circle cx="26" cy="26" r="22" fill="none" stroke="var(--border-1)" stroke-width="4"/>
+        <circle cx="26" cy="26" r="22" fill="none" stroke="var(--azure)" stroke-width="4" stroke-linecap="round"
+          stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct/100)}" style="transition:stroke-dashoffset 1s linear"/></svg>
+        <span class="ringpct">${pct}%</span>
+      </div>
+      <div>
+        <div style="font-weight:600;font-size:13px" id="analyzemsg-${cssId(p.id)}">${analyzeMsg(p)}</div>
+        <div class="sub" style="margin-top:3px">Shadow mode — read-only. Nothing is being changed in ${p.tool}.</div>
+      </div>
+    </div>` : "";
+  const cands = expListSect(p);
+
+  const a = p.autonomy_stats || {};
+  let autonomySect = "";
+  if (p.autonomy === "human-gated" && a.eligibleStart){
+    autonomySect = `<div class="sect"><button class="btn primary" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'auto-start'})">🔓 Unlock self-starting</button></div>`;
+  } else if (p.autonomy === "auto-start"){
+    autonomySect = `<div class="sect autobanner">⚡ <b>Self-starting.</b> ${p.tool} proposes and starts its own experiments; you still approve every merge.
+      ${a.eligibleMerge ? `<button class="btn primary" style="margin-left:10px" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'auto-merge'})">🔓 Unlock full autonomy</button>` : ""}
+      <button class="btn ghost" style="margin-left:8px" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'human-gated'})">dial down</button></div>`;
+  } else if (p.autonomy === "auto-merge"){
+    autonomySect = `<div class="sect autobanner">🏆 <b>Fully autonomous.</b> ${p.tool} starts experiments, merges validated winners, and keeps iterating — every action still ledgered, every merge still revertible.
+      <button class="btn ghost" style="margin-left:10px" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'auto-start'})">dial down</button></div>`;
+  }
+  const mapSect = p.map ? `<div class="sect">
+    <div class="collhead" onclick="event.stopPropagation();window.__mapOpen=window.__mapOpen==='${p.id}'?null:'${p.id}';renderProcesses(window.__procs||[])">
+      <span style="display:inline-block;transition:transform .2s;transform:rotate(${window.__mapOpen===p.id?90:0}deg)">▸</span>
+      <span class="plabel">What OpenXPLI knows</span>
+    </div>
+    ${window.__mapOpen===p.id ? `<div style="border:1px solid var(--border-1);border-radius:8px;background:var(--surface-2);margin-top:8px;padding:12px 14px;font-size:12.5px;line-height:1.55;white-space:pre-wrap">${p.map.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</div>` : ""}
+  </div>` : "";
+  return `
+    ${stepper(p)}
+    ${autonomySect}
+    ${analyzeNote}
+    ${mapSect}
+    ${cands}`;
+}
+const ANALYZE_MSGS = ["Reading through the connector…","Mapping what's already running…","Measuring current baselines…","Ranking the biggest opportunities…","Writing up hypotheses…"];
+function analyzeMsg(p){ return ANALYZE_MSGS[Math.floor(Date.now()/3500) % ANALYZE_MSGS.length]; }
+function cssId(s){ return s.replace(/[^a-z0-9]/gi,"-"); }
+function toast(html){
+  const t = document.createElement("div"); t.className = "toast"; t.innerHTML = html;
+  document.body.appendChild(t); setTimeout(() => { t.style.opacity = "0"; t.style.transition = "opacity .4s"; setTimeout(() => t.remove(), 450); }, 4200);
+}
+function confetti(){
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let cv = document.getElementById("confetti");
+  if (!cv){ cv = document.createElement("canvas"); cv.id = "confetti"; document.body.appendChild(cv); }
+  cv.width = innerWidth; cv.height = innerHeight;
+  const ctx = cv.getContext("2d"); if (!ctx) return;
+  const colors = ["#27A1FF","#0B7A38","#7C5CFF","#E86A8A","#C9A227","#E07830"];
+  const parts = Array.from({length: 110}, () => ({
+    x: innerWidth/2 + (Math.random()-0.5)*220, y: innerHeight*0.32,
+    vx: (Math.random()-0.5)*11, vy: -(4+Math.random()*9),
+    w: 5+Math.random()*5, h: 3+Math.random()*4, r: Math.random()*Math.PI,
+    vr: (Math.random()-0.5)*0.35, c: colors[Math.floor(Math.random()*colors.length)],
+  }));
+  const t0 = performance.now();
+  (function tick(t){
+    const el = (t-t0)/1000;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    for (const p of parts){
+      p.x += p.vx; p.y += p.vy; p.vy += 0.32; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+      ctx.globalAlpha = Math.max(0, 1 - el/1.6);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore();
+    }
+    if (el < 1.7) requestAnimationFrame(tick); else ctx.clearRect(0,0,cv.width,cv.height);
+  })(t0);
+}
+const STAGE_TOASTS = {
+  2: p => `<b>Analysis complete.</b> OpenXPLI found 3 experiments worth running on ${p.tool} — pick your first.`,
+  3: p => `<b>Experiment live!</b> ${p.tool} is now testing against control, one hourly read at a time.`,
+  4: p => `<b>First experiment decided.</b> Check Events for the verdict and receipts.`,
+  5: p => `<b>Self-starting unlocked.</b> ${p.tool} now proposes and starts its own experiments — you still approve every merge.`,
+  6: p => `<b>Fully autonomous.</b> ${p.tool} runs the whole loop now: experiment, merge winners, iterate. Every action stays on the ledger.`,
+};
+function celebrate(p, from, to){
+  confetti();
+  const msg = STAGE_TOASTS[to];
+  if (msg) toast(msg(p));
+}
+window.__coll = window.__coll || {};
+function toggleExps(id){ window.__coll[id] = !window.__coll[id]; renderProcesses(window.__procs || []); }
+function expListSect(p){
+  const rows = [];
+  for (const c of (p.candidates||[]).slice().sort((a,b)=>b.expected_multiple-a.expected_multiple)){
+    rows.push(`<div class="exprow">
+      <span class="badge b-choose">proposed</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:500">${c.field}: ${c.control_value} → <b>${c.variant_value}</b></div>
+        <div class="sub" style="margin-top:2px">${c.rationale}</div>
+        <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${c.metric}${c.inverse?" (1/x)":""} · expected ~×${c.expected_multiple.toFixed(2)}</div>
+      </div>
+      <button class="btn primary" style="padding:4px 12px" onclick="event.stopPropagation();post('/api/accept',{candidate:'${c.id}'})">Accept</button>
+      <button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();post('/api/dismiss',{candidate:'${c.id}'})">Dismiss</button>
+    </div>`);
+  }
+  const d10 = ts => new Date(ts).toISOString().slice(0,10);
+  const exps = (p.experiments||[]);
+  for (const e of exps.filter(e => e.status === "launching")){
+    const failed = e.launch_note && e.launch_note.startsWith("launch failed");
+    rows.push(`<div class="exprow">
+      <span class="badge ${failed ? "b-regressed" : "b-analyzing pulsing"}">${failed ? "launch failed" : "launching"}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
+        <div class="sub" style="margin-top:2px">${failed ? e.launch_note : "OpenXPLI is creating the objects in " + p.tool + " through the browser — receipts saved every step"}</div>
+      </div>
+    </div>`);
+  }
+  for (const e of exps.filter(e => e.status === "running")){
+    const dayN = Math.min(Math.ceil((Date.now()-e.started_at)/86400000), Math.round((e.ends_at-e.started_at)/86400000));
+    const days = Math.round((e.ends_at-e.started_at)/86400000);
+    rows.push(`<div class="exprow">
+      <span class="badge b-open">running</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
+        <div class="sub" style="margin-top:2px">day ${dayN} of ${days} · vs control</div>
+      </div>
+      <span class="mono" style="font-weight:600;${e.last_multiple==null?"color:var(--text-2)":e.last_multiple>1?"color:var(--green)":"color:var(--scarlet)"}">${e.last_multiple==null?"—":fmtX(e.last_multiple)+"…"}</span>
+    </div>`);
+  }
+  for (const e of exps.filter(e => e.status === "won" || e.status === "failed")){
+    const ho = e.holdout_status === "validated" ? ` <span style="color:var(--green)">✓ validated</span>`
+      : e.holdout_status === "regressed" ? ` <span style="color:var(--scarlet)">✗ regressed</span>`
+      : e.holdout_status === "validating" ? ` <span class="sub">holdout…</span>` : "";
+    rows.push(`<div class="exprow">
+      <span class="badge b-${e.status==="won"?"validated":"regressed"}">${e.status}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
+        <div class="sub" style="margin-top:2px">${d10(e.started_at)} → ${d10(e.ends_at)}${ho}</div>
+      </div>
+      <span class="mono" style="font-weight:600;color:${e.status==="won"?"var(--green)":"var(--scarlet)"}">${e.final_multiple==null?"—":fmtX(e.final_multiple)}</span>
+      ${e.record_id ? `<button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();openRecord('${e.record_id}')">event →</button>` : ""}
+    </div>`);
+  }
+  if (!rows.length) return "";
+  const open = !window.__coll[p.id];
+  return `<div class="sect">
+    <div class="collhead" onclick="event.stopPropagation();toggleExps('${p.id}')">
+      <span style="display:inline-block;transition:transform .2s;transform:rotate(${open?90:0}deg)">▸</span>
+      <span class="plabel">Experiments</span><span class="mono" style="font-size:10.5px;color:var(--text-2)">${rows.length}</span>
+      <span style="flex:1"></span>
+      <button class="btn ghost" style="padding:3px 10px;font-size:11.5px" onclick="event.stopPropagation();post('/api/rescout',{id:'${p.id}'})">↻ New suggestions</button>
+    </div>
+    ${open ? `<div class="explist">${rows.join("")}</div>` : ""}
+  </div>`;
+}
+function selectProc(id){ selProc = selProc === id ? null : id; renderProcesses(window.__procs || []); }
+function openRecord(id){ selRec = id; setView("ledger"); }
+
+// ── enroll / start forms ──
+function formModal(title, fieldsHtml, submitLabel, onSubmit){
+  let el = document.getElementById("modal-root");
+  if (!el){ el = document.createElement("div"); el.id = "modal-root"; document.body.appendChild(el); }
+  el.innerHTML = `<div class="shade" onclick="closeExp()"><div class="modal" style="width:520px" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center"><span style="font-weight:600;font-size:15px">${title}</span>
+      <button class="btn ghost" style="margin-left:auto" onclick="closeExp()">×</button></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">${fieldsHtml}</div>
+    <div style="display:flex;gap:8px;margin-top:18px"><span style="flex:1"></span>
+      <button class="btn" onclick="closeExp()">Cancel</button>
+      <button class="btn primary" id="form-submit">${submitLabel}</button></div>
+  </div></div>`;
+  document.getElementById("form-submit").onclick = onSubmit;
+}
+const F = (id, label, ph, extra="") => `<label style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);font-weight:500">${label}
+  <input id="${id}" placeholder="${ph}" ${extra} style="display:block;width:100%;margin-top:4px;border:1px solid var(--border-2);border-radius:6px;padding:7px 10px;font:12.5px var(--mono);background:var(--surface-2)"></label>`;
+function val(id){ return document.getElementById(id).value.trim(); }
+
+async function openConnectors(){
+  const procs = await j("/api/processes");
+  let el = document.getElementById("modal-root");
+  if (!el){ el = document.createElement("div"); el.id = "modal-root"; document.body.appendChild(el); }
+  const connected = procs.map(p => `
+    <div class="crow">
+      <div style="min-width:0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:600;font-size:14.5px">${p.tool}</span>
+          <span class="cchip">${p.latest ? "ACTIVE" : "SYNTHETIC"}</span>
+        </div>
+        <div class="sub" style="margin-top:2px">${p.id}${p.status === "shadow" ? " · shadow mode, read-only" : ""}</div>
+      </div>
+      <span class="cstate"><span class="cdot"></span>CONNECTED</span>
+      <button class="btn" onclick="closeExp();selProc='${p.id}';setView('processes')">⧉ Manage</button>
+    </div>`).join("");
+  const available = CATALOG.map(([name, slug, desc, auth]) => `
+    <div class="ccard crow">
+      <div style="min-width:0">
+        <div style="font-weight:600;font-size:14.5px">${name}</div>
+        <div class="sub" style="margin-top:2px">${desc}</div>
+      </div>
+      <button class="btn" onclick="connectTool('${name.replace(/'/g,"")}','${slug}','${auth}')">Connect</button>
+    </div>`).join("");
+  el.innerHTML = `<div class="shade" onclick="closeExp()"><div class="modal" style="width:600px;padding:0" onclick="event.stopPropagation()">
+    <div style="padding:22px 24px 16px;border-bottom:1px solid var(--border-1)">
+      <div style="display:flex;align-items:center"><span style="font-weight:700;font-size:19px">Connectors</span>
+        <button class="btn ghost" style="margin-left:auto" onclick="closeExp()">✕</button></div>
+      <div class="sub" style="margin-top:4px;font-size:13px">Bring your tools and processes into OpenXPLI</div>
+    </div>
+    <div style="padding:14px 24px;max-height:56vh;overflow-y:auto">
+      ${procs.length ? `<div class="csection">Connected</div><div class="cgroup">${connected}</div>` : ""}
+      <div class="csection">Connectors</div>
+      ${available}
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 24px;border-top:1px solid var(--border-1)">
+      <span class="sub" style="flex:1;font-size:12px">ⓘ Connectors initialize in shadow mode with read-only permissions — nothing is changed until you accept an experiment</span>
+      <button class="btn" onclick="window.open('https://github.com/ozanedge/openxpli','_blank')">⧉ Browse directory</button>
+    </div>
+  </div></div>`;
+}
+function connectTool(name, slug, auth){
+  formModal(`Connect ${name}`, [
+    `<div class="sub" style="line-height:1.5"><b>1.</b> Connect opens ${name}'s sign-in in a new tab — make sure you're signed in <i>in this browser</i>. OpenXPLI rides your existing session and never sees your password.<br><b>2.</b> The connector starts in <b>shadow mode with read-only permissions</b>: OpenXPLI analyzes the current state and suggests the top 3 experiments; you accept each one to start it.</div>`,
+    F("f-id","Account name", `${slug}/main-account`, `value="${slug}/main-account"`),
+  ].join(""), "Connect", async () => {
+    const d = await post("/api/add", { id: val("f-id"), tool: name });
+    if (d.ok){ window.open(auth, "_blank"); closeExp(); openConnectors(); }
+  });
+}
+function openEnroll(){
+  formModal("Enroll process", [
+    F("f-id","Process id","klaviyo/cart-abandon-01"),
+    F("f-tool","Tool","Klaviyo"),
+    F("f-metric","Metric","conversion rate"),
+    `<label style="font-size:12px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="f-inverse"> Lower is better (plotted as 1/x)</label>`,
+    `<label style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);font-weight:500">Autonomy
+      <select id="f-autonomy" style="display:block;width:100%;margin-top:4px;border:1px solid var(--border-2);border-radius:6px;padding:7px 10px;font:12.5px var(--font);background:var(--surface-2)">
+        <option value="shadow" selected>shadow (observe & propose only)</option>
+        <option value="human-gated">human-gated</option>
+        <option value="auto-merge">auto-merge</option></select></label>`,
+    F("f-guardrails","Guardrails (semicolon-separated)","unsubscribes must not rise; deliverability > 98%"),
+    F("f-blast","Blast radius","$250/day spend cap"),
+  ].join(""), "Enroll", async () => {
+    const d = await post("/api/enroll", {
+      id: val("f-id"), tool: val("f-tool"), metric: val("f-metric"),
+      inverse: document.getElementById("f-inverse").checked,
+      autonomy: document.getElementById("f-autonomy").value,
+      guardrails: val("f-guardrails") ? val("f-guardrails").split(";").map(s=>s.trim()).filter(Boolean) : [],
+      blastRadius: val("f-blast"),
+    });
+    if (d.ok) closeExp();
+  });
+}
+function openStart(procId){
+  formModal(`Start experiment on ${procId}`, [
+    F("f-field","Field to change","subject line"),
+    F("f-control","Control value","Your cart misses you"),
+    F("f-variant","Variant value","Still thinking it over?"),
+    F("f-days","Run length (days)","7", 'value="7"'),
+  ].join(""), "Start", async () => {
+    const d = await post("/api/start", { process: procId, field: val("f-field"), control: val("f-control"), variant: val("f-variant"), days: Number(val("f-days") || 7) });
+    if (d.ok) closeExp();
+  });
+}
+window.__coll = window.__coll || {};
+function toggleExps(id){ window.__coll[id] = !window.__coll[id]; renderProcesses(window.__procs || []); }
+function expListSect(p){
+  const rows = [];
+  for (const c of (p.candidates||[]).slice().sort((a,b)=>b.expected_multiple-a.expected_multiple)){
+    rows.push(`<div class="exprow">
+      <span class="badge b-choose">proposed</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:500">${c.field}: ${c.control_value} → <b>${c.variant_value}</b></div>
+        <div class="sub" style="margin-top:2px">${c.rationale}</div>
+        <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${c.metric}${c.inverse?" (1/x)":""} · expected ~×${c.expected_multiple.toFixed(2)}</div>
+      </div>
+      <button class="btn primary" style="padding:4px 12px" onclick="event.stopPropagation();post('/api/accept',{candidate:'${c.id}'})">Accept</button>
+      <button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();post('/api/dismiss',{candidate:'${c.id}'})">Dismiss</button>
+    </div>`);
+  }
+  const d10 = ts => new Date(ts).toISOString().slice(0,10);
+  const exps = (p.experiments||[]);
+  for (const e of exps.filter(e => e.status === "launching")){
+    const failed = e.launch_note && e.launch_note.startsWith("launch failed");
+    rows.push(`<div class="exprow">
+      <span class="badge ${failed ? "b-regressed" : "b-analyzing pulsing"}">${failed ? "launch failed" : "launching"}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
+        <div class="sub" style="margin-top:2px">${failed ? e.launch_note : "OpenXPLI is creating the objects in " + p.tool + " through the browser — receipts saved every step"}</div>
+      </div>
+    </div>`);
+  }
+  for (const e of exps.filter(e => e.status === "running")){
+    const dayN = Math.min(Math.ceil((Date.now()-e.started_at)/86400000), Math.round((e.ends_at-e.started_at)/86400000));
+    const days = Math.round((e.ends_at-e.started_at)/86400000);
+    rows.push(`<div class="exprow">
+      <span class="badge b-open">running</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
+        <div class="sub" style="margin-top:2px">day ${dayN} of ${days} · vs control</div>
+      </div>
+      <span class="mono" style="font-weight:600;${e.last_multiple==null?"color:var(--text-2)":e.last_multiple>1?"color:var(--green)":"color:var(--scarlet)"}">${e.last_multiple==null?"—":fmtX(e.last_multiple)+"…"}</span>
+    </div>`);
+  }
+  for (const e of exps.filter(e => e.status === "won" || e.status === "failed")){
+    const ho = e.holdout_status === "validated" ? ` <span style="color:var(--green)">✓ validated</span>`
+      : e.holdout_status === "regressed" ? ` <span style="color:var(--scarlet)">✗ regressed</span>`
+      : e.holdout_status === "validating" ? ` <span class="sub">holdout…</span>` : "";
+    rows.push(`<div class="exprow">
+      <span class="badge b-${e.status==="won"?"validated":"regressed"}">${e.status}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
+        <div class="sub" style="margin-top:2px">${d10(e.started_at)} → ${d10(e.ends_at)}${ho}</div>
+      </div>
+      <span class="mono" style="font-weight:600;color:${e.status==="won"?"var(--green)":"var(--scarlet)"}">${e.final_multiple==null?"—":fmtX(e.final_multiple)}</span>
+      ${e.record_id ? `<button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();openRecord('${e.record_id}')">event →</button>` : ""}
+    </div>`);
+  }
+  if (!rows.length) return "";
+  const open = !window.__coll[p.id];
+  return `<div class="sect">
+    <div class="collhead" onclick="event.stopPropagation();toggleExps('${p.id}')">
+      <span style="display:inline-block;transition:transform .2s;transform:rotate(${open?90:0}deg)">▸</span>
+      <span class="plabel">Experiments</span><span class="mono" style="font-size:10.5px;color:var(--text-2)">${rows.length}</span>
+      <span style="flex:1"></span>
+      <button class="btn ghost" style="padding:3px 10px;font-size:11.5px" onclick="event.stopPropagation();post('/api/rescout',{id:'${p.id}'})">↻ New suggestions</button>
+    </div>
+    ${open ? `<div class="explist">${rows.join("")}</div>` : ""}
+  </div>`;
+}
+function selectProc(id){ selProc = selProc === id ? null : id; renderProcesses(window.__procs || []); }
+function openRecord(id){ selRec = id; setView("ledger"); }
+
+// ── ledger view ──
+function md(s){
+  const esc = t => t.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`(.+?)`/g,"<code>$1</code>");
+  const lines = s.split("\n"); let out = "", table = [];
+  const flush = () => { if (table.length){ out += `<table>${table.map(r=>`<tr>${r.map(c=>`<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</table>`; table = []; } };
+  for (const ln of lines){
+    if (/^\|/.test(ln)){ if (!/^\|[-\s|]+\|$/.test(ln)) table.push(ln.split("|").slice(1,-1).map(c=>c.trim())); continue; }
+    flush();
+    if (/^# /.test(ln)) out += `<h2>${inline(ln.slice(2))}</h2>`;
+    else if (/^## /.test(ln)) out += `<h3>${inline(ln.slice(3))}</h3>`;
+    else if (/^\d+\. /.test(ln) || /^- /.test(ln)) out += `<li>${inline(ln.replace(/^(\d+\. |- )/,""))}</li>`;
+    else if (ln.trim()) out += `<p>${inline(ln)}</p>`;
+  }
+  flush(); return out;
+}
+function renderLedger(recs){
+  window.__recs = recs;
+  if (selRec == null && recs.length) selRec = recs[recs.length-1].id;
+  document.getElementById("rec-list").innerHTML = recs.length ? recs.slice().reverse().map(r => `
+    <div class="recitem ${r.id===selRec?"sel":""}" onclick="selectRec('${r.id}')">
+      <div style="display:flex;gap:8px;align-items:baseline"><span class="id mono" style="color:var(--text-2)">${r.id}</span>
+      <span class="badge b-${r.outcome}" style="margin-left:auto">${r.outcome}</span></div>
+      <div class="t" style="font-weight:500;font-size:12px;margin-top:3px">${r.title.replace(/^REC-\d+ — /,"")}</div>
+      <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${r.process}</div>
+    </div>`).join("") : `<span class="sub">No decision records yet.</span>`;
+  const r = recs.find(q => q.id === selRec);
+  const actions = r && r.outcome === "open" ? `
+    <div style="display:flex;gap:8px;margin-top:20px;border-top:1px solid var(--border-1);padding-top:14px">
+      <button class="btn primary" onclick="if(confirm('Approve & merge ${r.id}?')) post('/api/approve',{record:'${r.id}'})">Approve &amp; merge</button>
+      <button class="btn danger" onclick="if(confirm('Reject ${r.id}? Control stays; holdout is cancelled.')) post('/api/reject',{record:'${r.id}'})">Reject</button>
+      <button class="btn ghost" onclick="post('/api/extend',{experiment: recExp('${r.id}'), days:7})">Request more runtime</button>
+    </div>` : "";
+  document.getElementById("rec-detail").innerHTML = r ? md(r.body) + actions : `<span class="sub">The ledger fills as experiments finalize.</span>`;
+}
+function recExp(recId){
+  const r = (window.__recs || []).find(q => q.id === recId);
+  return r ? (r.body.match(/\*\*experiment:\*\* (\S+)/)?.[1] ?? "") : "";
+}
+function selectRec(id){ selRec = id; refresh(); }
+
+function renderLookback(){
+  document.getElementById("lookback").innerHTML = [7,30,90,365].map(d => `<button class="${d===days?"on":""}" onclick="setDays(${d})">${d}d</button>`).join("");
+  document.getElementById("modeseg").innerHTML = ["chart","table"].map(mo => `<button class="${mo===mode?"on":""}" onclick="setMode('${mo}')">${mo[0].toUpperCase()+mo.slice(1)}</button>`).join("");
+}
+function setDays(d){ days = d; refresh(); }
+function setMode(mo){ mode = mo; refresh(); }
+
+async function refresh(){
+  renderTabs();
+  if (view === "experiments"){
+    renderLookback();
+    const [s, exps] = await Promise.all([j("/api/summary"), j(`/api/experiments?days=${days}`)]);
+    EXPS = exps;
+    renderCards(s);
+    document.getElementById("chartwrap").style.display = mode === "chart" ? "" : "none";
+    document.getElementById("tablewrap").style.display = mode === "table" ? "" : "none";
+    if (mode === "chart") renderChart(exps); else renderTable(exps);
+  } else if (view === "processes"){
+    const procs = await j("/api/processes");
+    renderProcesses(procs);
+    clearTimeout(window.__procPoll);
+    if (procs.some(p => p.status === "shadow"))
+      window.__procPoll = setTimeout(() => { if (view === "processes") refresh(); }, 2000);
+  } else {
+    renderLedger(await j("/api/records"));
+  }
+}
+refresh();
+window.addEventListener("resize", () => { if (view === "experiments") refresh(); });
+</script>
+</body>
+</html>
