@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { openDb } from "./db.js";
 import { LEDGER_DIR, HOUR_MS } from "./paths.js";
+import { setReviewState, setHoldoutState, outcomeFor } from "./outcomes.js";
 // The three review verbs from the design (plus kill). The ledger file is the
 // source of truth for record state; every mutation is a git commit.
 function git(args) {
@@ -13,8 +14,6 @@ function mutateRecord(recordId, newStatus, note, commitMsg) {
     if (!existsSync(path))
         throw new Error(`no such record: ${recordId}`);
     let body = readFileSync(path, "utf8");
-    if (!body.includes("open (awaiting review)") && !body.includes("reopened"))
-        throw new Error(`${recordId} is not open for review`);
     body = body.replace(/- \*\*status:\*\* .*/, `- **status:** ${newStatus}`);
     body += `\n## Resolution\n${note} — ${new Date().toISOString()}\n`;
     writeFileSync(path, body);
@@ -28,15 +27,29 @@ function expForRecord(recordId) {
         throw new Error(`no experiment linked to ${recordId}`);
     return exp;
 }
+// Whether a record can still be acted on is a fact about the outcome, not a
+// substring in a file. The file is still updated — it is what a human reads.
+function assertOpen(experimentId, recordId) {
+    const o = outcomeFor(experimentId);
+    if (!o)
+        return; // pre-outcomes record; the file remains the only source
+    if (o.review_state !== "open" && o.review_state !== "reopened")
+        throw new Error(`${recordId} is not open for review (${o.review_state})`);
+}
 export function approve(recordId) {
     const exp = expForRecord(recordId);
+    assertOpen(exp.id, recordId);
+    setReviewState(exp.id, "merged");
     mutateRecord(recordId, "merged", "Approved & merged. The variant is the new control; the trailing holdout continues to validate.", `${recordId}: approved & merged`);
     return `approved ${recordId} (${exp.id}) — variant merged; holdout continues`;
 }
 export function reject(recordId) {
     const exp = expForRecord(recordId);
+    assertOpen(exp.id, recordId);
     const db = openDb();
     db.prepare("UPDATE holdouts SET status = 'cancelled' WHERE experiment_id = ? AND status = 'validating'").run(exp.id);
+    setReviewState(exp.id, "rejected");
+    setHoldoutState(exp.id, "cancelled");
     mutateRecord(recordId, "rejected", "Rejected by reviewer. Variant not adopted; control unchanged; holdout cancelled.", `${recordId}: rejected`);
     return `rejected ${recordId} (${exp.id}) — control unchanged, holdout cancelled`;
 }
@@ -58,6 +71,8 @@ export function extend(experimentId, days) {
     db2.prepare("UPDATE holdouts SET status = 'cancelled' WHERE experiment_id = ? AND status = 'validating'").run(exp.id);
     db2.prepare("UPDATE experiments SET status = 'running', final_multiple = NULL, ends_at = ? WHERE id = ?")
         .run(Date.now() + days * 24 * HOUR_MS, experimentId);
+    setReviewState(exp.id, "reopened");
+    setHoldoutState(exp.id, "cancelled");
     mutateRecord(exp.record_id, "reopened (more runtime granted)", `Reviewer requested ${days} more days of runtime; decision deferred.`, `${exp.record_id}: more runtime granted`);
     return `reopened ${experimentId} for ${days}d more; ${exp.record_id} marked reopened`;
 }

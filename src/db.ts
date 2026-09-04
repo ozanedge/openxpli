@@ -6,7 +6,7 @@ export interface ProcessRow {
   tool: string;
   metric: string;
   inverse: number; // 1 = lower-is-better metric, plotted/scored as 1/x
-  autonomy: "shadow" | "human-gated" | "auto-merge";
+  autonomy: "shadow" | "human-gated" | "auto-start" | "auto-merge";
   status: string;
   policy: string; // JSON: caps, guardrails
   created_at: number;
@@ -23,6 +23,7 @@ export interface ExperimentRow {
   status: "running" | "won" | "failed";
   final_multiple: number | null;
   record_id: string | null;
+  goal_id: string | null; // the goal this experiment was started under
 }
 
 export interface ObservationRow {
@@ -34,6 +35,43 @@ export interface ObservationRow {
   source: string; // binding that produced it: api | cli | browser | synthetic
   missing: number; // 1 = unfillable gap, recorded honestly
   phase: string; // 'run' | 'holdout'
+}
+
+export interface GoalRow {
+  id: string;
+  source_id: string;
+  metric: string;
+  inverse: number; // 1 = lower-is-better north star, scored as 1/x
+  guardrails: string; // JSON: [{metric, direction}] — declared, must not regress
+  rationale: string;
+  status: "proposed" | "ratified" | "superseded" | "dismissed";
+  record_id: string | null; // ledger record for the ratification
+  created_at: number;
+  ratified_at: number | null;
+}
+
+// An experiment's outcome has a life after the run ends: a verdict, a written
+// record, a human review, and a trailing holdout that can still overturn it.
+// That lifecycle used to live in three places at once — two columns on
+// experiments, a row in holdouts, and a status line inside a markdown file that
+// runAutonomy string-matched to decide what to merge. It gets a row.
+export interface OutcomeRow {
+  experiment_id: string;
+  process_id: string;
+  goal_id: string | null;   // what this run was measured against
+  verdict: "won" | "failed";
+  final_multiple: number | null;
+  record_id: string | null; // the ledger narrative for this outcome
+  review_state: "open" | "merged" | "rejected" | "reopened" | "auto-reverted";
+  reviewed_at: number | null;
+  holdout_state: "none" | "validating" | "validated" | "regressed" | "cancelled";
+  holdout_multiple: number | null;
+  decided_at: number;
+}
+
+export interface Guardrail {
+  metric: string;
+  direction: "must-not-drop" | "must-not-rise";
 }
 
 export interface HoldoutRow {
@@ -83,6 +121,40 @@ export function openDb(): Database.Database {
       final_multiple REAL
     );
   `);
+  // A goal is the north star a connector is accountable to. It is proposed by
+  // the scout, ratified by a human, ledgered, and outlives every experiment
+  // run beneath it — an experiment can never redefine what winning means.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS goals (
+      id TEXT PRIMARY KEY, source_id TEXT NOT NULL REFERENCES processes(id),
+      metric TEXT NOT NULL, inverse INTEGER NOT NULL DEFAULT 0,
+      guardrails TEXT NOT NULL DEFAULT '[]',
+      rationale TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'proposed',
+      record_id TEXT, created_at INTEGER NOT NULL, ratified_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS goals_by_source ON goals (source_id, status);
+    CREATE TABLE IF NOT EXISTS outcomes (
+      experiment_id TEXT PRIMARY KEY REFERENCES experiments(id),
+      process_id TEXT NOT NULL REFERENCES processes(id),
+      goal_id TEXT,
+      verdict TEXT NOT NULL,
+      final_multiple REAL,
+      record_id TEXT,
+      review_state TEXT NOT NULL DEFAULT 'open',
+      reviewed_at INTEGER,
+      holdout_state TEXT NOT NULL DEFAULT 'none',
+      holdout_multiple REAL,
+      decided_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS outcomes_by_goal ON outcomes (goal_id, verdict);
+    CREATE TABLE IF NOT EXISTS candidates (
+      id TEXT PRIMARY KEY, source_id TEXT NOT NULL REFERENCES processes(id),
+      field TEXT NOT NULL, control_value TEXT NOT NULL, variant_value TEXT NOT NULL,
+      metric TEXT NOT NULL, inverse INTEGER NOT NULL DEFAULT 0,
+      rationale TEXT NOT NULL, expected_multiple REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'proposed', created_at INTEGER NOT NULL
+    );`);
   db.exec(`
     CREATE TABLE IF NOT EXISTS knowledge (
       source_id TEXT NOT NULL REFERENCES processes(id),
@@ -94,6 +166,7 @@ export function openDb(): Database.Database {
   ensureColumn(db, "observations", "phase", "TEXT NOT NULL DEFAULT 'run'");
   ensureColumn(db, "experiments", "record_id", "TEXT");
   ensureColumn(db, "experiments", "launch_note", "TEXT");
+  ensureColumn(db, "experiments", "goal_id", "TEXT");
   return db;
 }
 

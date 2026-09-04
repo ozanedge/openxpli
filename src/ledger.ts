@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { LEDGER_DIR, ensureDirs } from "./paths.js";
-import type { ExperimentRow, ProcessRow } from "./db.js";
+import { openDb, type ExperimentRow, type ProcessRow, type GoalRow, type Guardrail } from "./db.js";
 
 function git(args: string[]): string {
   return execFileSync("git", ["-C", LEDGER_DIR, ...args], { encoding: "utf8" }).trim();
@@ -26,6 +26,59 @@ function nextRecId(): string {
   return `REC-${String(101 + n).padStart(4, "0")}`;
 }
 
+// Ratifying a goal is the most consequential decision in the system: it
+// defines what winning means for everything run beneath it. It gets a record
+// like any other, so the definition of success is itself auditable.
+export function writeGoalRecord(
+  proc: ProcessRow,
+  goal: GoalRow,
+  previous: GoalRow | null,
+  demotedFrom: string | null
+): string {
+  ensureLedger();
+  const id = nextRecId();
+  const guardrails: Guardrail[] = (() => { try { const v = JSON.parse(goal.guardrails); return Array.isArray(v) ? v : []; } catch { return []; } })();
+  const body = `# ${id} — goal: ${proc.id} is accountable to ${goal.metric}
+
+- **status:** ratified
+- **process:** ${proc.id} (${proc.tool})
+- **goal:** ${goal.id}
+- **north star:** ${goal.metric} ${goal.inverse ? "(lower is better — scored as 1/x)" : "(higher is better)"}
+- **agent:** openxpli/loop
+- **ratified:** ${new Date().toISOString()}
+${previous ? `- **supersedes:** ${previous.id} — ${previous.metric}\n` : ""}
+## Why this metric
+${goal.rationale}
+
+## Guardrails
+${guardrails.length
+  ? guardrails.map((g) => `- \`${g.metric}\` — ${g.direction === "must-not-rise" ? "must not rise" : "must not drop"}`).join("\n")
+  : "- none declared"}
+
+> Guardrails are recorded here and enforced at review. They are not yet read
+> automatically — that needs live bindings (\`resolveBinding\` is still a stub),
+> so today they are a stated contract a human checks, not an automatic kill.
+
+## What this changes
+Every experiment on ${proc.id} from here measures \`${goal.metric}\`. Candidates
+proposed against a different metric are dismissed, and accepting a candidate can
+no longer redefine the goal — only this record can.
+${demotedFrom ? `
+## Autonomy reset
+${proc.id} was at **${demotedFrom}** and has been returned to **human-gated**. The
+wins that earned that autonomy were measured against \`${previous?.metric}\`, so they
+do not transfer to a new definition of winning. It re-earns from here.
+` : ""}
+## Revert steps
+1. Ratify the superseding goal record${previous ? ` (${previous.id} — \`${previous.metric}\`)` : ""} to restore the previous north star.
+2. \`git revert\` this record's commit.
+`;
+  writeFileSync(join(LEDGER_DIR, `${id}.md`), body);
+  git(["add", "-A"]);
+  git(["commit", "-qm", `${id}: goal ratified for ${proc.id} — ${goal.metric}${previous ? ` (was ${previous.metric})` : ""}`]);
+  return id;
+}
+
 export function writeDecisionRecord(
   proc: ProcessRow,
   exp: ExperimentRow,
@@ -36,22 +89,29 @@ export function writeDecisionRecord(
 ): string {
   ensureLedger();
   const id = nextRecId();
-  const date = new Date(exp.ends_at).toISOString().slice(0, 10);
+  // Report against the goal this run was bound to, not whatever the connector
+  // is pointed at now — a re-goal must never rewrite what a finished run meant.
+  const ranUnder = exp.goal_id
+    ? (openDb().prepare("SELECT * FROM goals WHERE id = ?").get(exp.goal_id) as GoalRow | undefined)
+    : undefined;
+  const metric = ranUnder?.metric ?? proc.metric;
+  const stale = ranUnder && ranUnder.status === "superseded";
   const body = `# ${id} — ${exp.field}: ${exp.control_value} → ${exp.variant_value}
 
 - **status:** ${won ? "open (awaiting review)" : "reverted (below ×1.00, never adopted)"}
 - **process:** ${proc.id} (${proc.tool})
 - **experiment:** ${exp.id}
 - **agent:** openxpli/loop
+- **goal:** ${ranUnder ? `${ranUnder.id} — \`${metric}\`${stale ? " (superseded since this run started; this record reports the goal it ran under)" : ""}` : "none recorded (pre-goals experiment)"}
 - **run:** ${new Date(exp.started_at).toISOString()} → ${new Date(exp.ends_at).toISOString()}
 
 ## Hypothesis
-Changing \`${exp.field}\` from \`${exp.control_value}\` to \`${exp.variant_value}\` improves \`${proc.metric}\`.
+Changing \`${exp.field}\` from \`${exp.control_value}\` to \`${exp.variant_value}\` improves \`${metric}\`.
 
 ## Evidence — read from ${proc.tool}
 | Metric | Control | Variant | Δ |
 |---|---|---|---|
-| ${proc.metric} | 1.00× | ${finalMultiple.toFixed(2)}× | ${((finalMultiple - 1) * 100).toFixed(1)}% |
+| ${metric} | 1.00× | ${finalMultiple.toFixed(2)}× | ${((finalMultiple - 1) * 100).toFixed(1)}% |
 
 ## Statistics
 - Final multiple vs control: **${finalMultiple.toFixed(3)}×**

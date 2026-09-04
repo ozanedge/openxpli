@@ -26,12 +26,61 @@ one — npm caches tarballs by URL, so a stable name can silently serve stale by
 ```sh
 openxpli init                                  # data dir + sqlite + git ledger + hourly launchd job
 openxpli add klaviyo/main-account --tool Klaviyo   # add a Connector: shadow mode, read-only
-#   -> OpenXPLI analyzes it and suggests the top 3 experiments, each with a rationale
+#   -> OpenXPLI analyzes it and proposes north star metrics it could be held to
+openxpli goals klaviyo/main-account            # see the proposed goals and their guardrails
+openxpli ratify main-account#g1                # ratify one — ledgered; this defines winning
+#   -> experiments are then proposed *against* that goal, each with a rationale
 openxpli accept main-account#1                 # accept a candidate to start the experiment
 openxpli ui                                    # console at http://localhost:41100
 openxpli harvest                               # fill all due hourly observations (safe anytime)
 openxpli doctor                                # health: db, ledger, launchd, heartbeat
 ```
+
+## Goals come before experiments
+
+A connector is accountable to exactly one **goal**: a north star metric, a
+direction, and the guardrails that must not regress while chasing it. The scout
+proposes goals; a human ratifies one; the ratification is a git-committed ledger
+record like any other decision.
+
+Everything below the goal is measured against it:
+
+- Candidates are generated **against** the ratified goal, and `accept` refuses a
+  candidate that measures anything else. Accepting an experiment can never
+  redefine what winning means — only ratifying a new goal can.
+- An experiment is stamped with the goal it started under, so re-goaling a
+  connector mid-flight cannot retroactively change what a finished run meant.
+- Re-goaling **resets earned autonomy** to `human-gated`. The wins that earned
+  self-starting were measured against a different definition of winning, so they
+  do not transfer.
+
+That last rule is the point. Without it, a self-starting connector picks the
+candidate with the highest expected multiple every cycle — which means it picks
+whichever metric it can most easily move, and grades itself on that.
+
+Guardrails are recorded and checked at review. They are **not** read
+automatically yet: that needs live bindings, and `resolveBinding` is still a
+stub returning synthetic readings.
+
+Autonomy is earned **per goal**, not per connector. Wins measured against a
+metric you have since abandoned do not count toward self-starting.
+
+## Outcomes
+
+`connector → goals → experiments → outcome`. When a run ends, its outcome
+becomes a row: verdict, final multiple, ledger record, review state, and
+trailing-holdout state. The database is the **state machine**; the ledger record
+is the **narrative** a human reads.
+
+That separation matters because review state used to live *only* inside the
+markdown record, and an autonomous merge was decided by string-matching
+`"open (awaiting review)"` against prose. Now `approve` / `reject` / `extend`
+move a real column, and autonomy reads it.
+
+An outcome is stamped with the goal its run was bound to, so a finished result
+always reports the metric it was actually measured against — even if the
+connector has been re-goaled since. Multiples only compound within one goal;
+the console refuses to blend across metrics and says so.
 
 Every **Connector** initializes in shadow mode with read-only permissions — nothing is
 changed until you accept an experiment, and autonomy beyond that is earned per-connector.

@@ -37,6 +37,40 @@ export function openDb() {
       final_multiple REAL
     );
   `);
+    // A goal is the north star a connector is accountable to. It is proposed by
+    // the scout, ratified by a human, ledgered, and outlives every experiment
+    // run beneath it — an experiment can never redefine what winning means.
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS goals (
+      id TEXT PRIMARY KEY, source_id TEXT NOT NULL REFERENCES processes(id),
+      metric TEXT NOT NULL, inverse INTEGER NOT NULL DEFAULT 0,
+      guardrails TEXT NOT NULL DEFAULT '[]',
+      rationale TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'proposed',
+      record_id TEXT, created_at INTEGER NOT NULL, ratified_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS goals_by_source ON goals (source_id, status);
+    CREATE TABLE IF NOT EXISTS outcomes (
+      experiment_id TEXT PRIMARY KEY REFERENCES experiments(id),
+      process_id TEXT NOT NULL REFERENCES processes(id),
+      goal_id TEXT,
+      verdict TEXT NOT NULL,
+      final_multiple REAL,
+      record_id TEXT,
+      review_state TEXT NOT NULL DEFAULT 'open',
+      reviewed_at INTEGER,
+      holdout_state TEXT NOT NULL DEFAULT 'none',
+      holdout_multiple REAL,
+      decided_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS outcomes_by_goal ON outcomes (goal_id, verdict);
+    CREATE TABLE IF NOT EXISTS candidates (
+      id TEXT PRIMARY KEY, source_id TEXT NOT NULL REFERENCES processes(id),
+      field TEXT NOT NULL, control_value TEXT NOT NULL, variant_value TEXT NOT NULL,
+      metric TEXT NOT NULL, inverse INTEGER NOT NULL DEFAULT 0,
+      rationale TEXT NOT NULL, expected_multiple REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'proposed', created_at INTEGER NOT NULL
+    );`);
     db.exec(`
     CREATE TABLE IF NOT EXISTS knowledge (
       source_id TEXT NOT NULL REFERENCES processes(id),
@@ -48,6 +82,7 @@ export function openDb() {
     ensureColumn(db, "observations", "phase", "TEXT NOT NULL DEFAULT 'run'");
     ensureColumn(db, "experiments", "record_id", "TEXT");
     ensureColumn(db, "experiments", "launch_note", "TEXT");
+    ensureColumn(db, "experiments", "goal_id", "TEXT");
     return db;
 }
 function ensureColumn(db, table, col, ddl) {

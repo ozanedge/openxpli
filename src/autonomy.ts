@@ -1,9 +1,8 @@
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
-import { openDb, type ProcessRow, type ExperimentRow } from "./db.js";
-import { LEDGER_DIR } from "./paths.js";
+import { openDb, type ProcessRow } from "./db.js";
+import { openOutcomes } from "./outcomes.js";
 import { scout, listCandidates, acceptCandidate } from "./scout.js";
 import { approve } from "./review.js";
+import { ratifiedGoal } from "./goals.js";
 
 // The autonomy ladder is earned, then explicitly enabled by a human:
 //   human-gated -> auto-start (may start its own experiments)
@@ -19,15 +18,23 @@ export interface AutonomyStats {
   autoMergeAt: number;
   eligibleStart: boolean;
   eligibleMerge: boolean;
+  goalId: string | null;
+  goalMetric: string | null;
 }
 
 export function autonomyStats(processId: string): AutonomyStats {
   const db = openDb();
-  const wins = (db.prepare("SELECT COUNT(*) c FROM experiments WHERE process_id = ? AND status = 'won'").get(processId) as { c: number }).c;
-  const validated = (db.prepare("SELECT COUNT(*) c FROM holdouts WHERE process_id = ? AND status = 'validated'").get(processId) as { c: number }).c;
-  const regressed = (db.prepare("SELECT COUNT(*) c FROM holdouts WHERE process_id = ? AND status = 'regressed'").get(processId) as { c: number }).c;
+  // Autonomy is earned against the CURRENT goal. Counting every win a connector
+  // ever had makes the reset-on-re-goal cosmetic: wins measured against an
+  // abandoned metric would instantly re-qualify it.
+  const goal = ratifiedGoal(processId);
+  const gid = goal?.id ?? "\u0000none";
+  const one = (sql: string) => (db.prepare(sql).get(processId, gid) as { c: number }).c;
+  const wins = one("SELECT COUNT(*) c FROM outcomes WHERE process_id = ? AND goal_id = ? AND verdict = 'won'");
+  const validated = one("SELECT COUNT(*) c FROM outcomes WHERE process_id = ? AND goal_id = ? AND holdout_state = 'validated'");
+  const regressed = one("SELECT COUNT(*) c FROM outcomes WHERE process_id = ? AND goal_id = ? AND holdout_state = 'regressed'");
   return {
-    wins, validated, regressed,
+    wins, validated, regressed, goalId: goal?.id ?? null, goalMetric: goal?.metric ?? null,
     autoStartAt: AUTO_START_WINS, autoMergeAt: AUTO_MERGE_WINS,
     eligibleStart: wins >= AUTO_START_WINS && regressed === 0,
     eligibleMerge: wins >= AUTO_MERGE_WINS && validated >= 1 && regressed === 0,
@@ -63,17 +70,19 @@ export function runAutonomy(): void {
   ).all() as ProcessRow[];
 
   for (const p of procs) {
+    // No north star, no autonomy. A self-starting connector without a ratified
+    // goal would pick whichever candidate it thinks it can move most and call
+    // that winning — the exact failure goals exist to prevent.
+    if (!ratifiedGoal(p.id)) {
+      console.log(`autonomy: ${p.id} has no ratified goal — skipping (ratify one to resume)`);
+      continue;
+    }
     // Fully autonomous: merge this connector's open winning records first.
     if (p.autonomy === "auto-merge") {
-      const wonExps = db.prepare(
-        "SELECT * FROM experiments WHERE process_id = ? AND status = 'won' AND record_id IS NOT NULL"
-      ).all(p.id) as ExperimentRow[];
-      for (const e of wonExps) {
-        const path = join(LEDGER_DIR, `${e.record_id}.md`);
-        if (existsSync(path) && readFileSync(path, "utf8").includes("open (awaiting review)")) {
-          try { console.log(`autonomy: auto-merged ${e.record_id} (${p.id}) — ${approve(e.record_id!)}`); }
-          catch { /* raced or already resolved */ }
-        }
+      for (const o of openOutcomes(p.id)) {
+        if (!o.record_id) continue;
+        try { console.log(`autonomy: auto-merged ${o.record_id} (${p.id}) — ${approve(o.record_id)}`); }
+        catch { /* raced or already resolved */ }
       }
     }
     // Both levels: keep the loop turning — start the next best candidate.
@@ -83,6 +92,9 @@ export function runAutonomy(): void {
     if (running) continue;
     let cands = listCandidates(p.id);
     if (!cands.length) { scout(p.id); cands = listCandidates(p.id); }
+    // Only candidates that measure the goal are eligible; ranking by expected
+    // multiple across mixed metrics is how metric-shopping starts.
+    cands = cands.filter((c) => c.metric === p.metric && c.inverse === p.inverse);
     if (!cands.length) continue;
     const best = cands.slice().sort((a, b) => b.expected_multiple - a.expected_multiple)[0];
     try { console.log(`autonomy: auto-started (${p.autonomy}) — ${acceptCandidate(best.id)}`); }

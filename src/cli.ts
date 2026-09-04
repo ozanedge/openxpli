@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 const cmd = process.argv[2];
 
-function enrollDemo(): void {
+async function enrollDemo(): Promise<void> {
   // Seeds the dogfood process with two experiments: one that completed
   // (exercises finalize -> ledger record -> git commit) and one mid-flight
   // started 30h ago (exercises catch-up backfill on the first harvest).
@@ -31,6 +31,13 @@ function enrollDemo(): void {
   const liveStart = now - 30 * HOUR_MS;
   ins.run("readme-quickstart/082526", "openxpli/readme-quickstart", "install command placement",
     "below the fold", "first code block", liveStart, liveStart + DEFAULT_RUN_HOURS * HOUR_MS);
+  const { ratifiedGoal, adoptGoal } = await import("./goals.js");
+  const gid = ratifiedGoal("openxpli/readme-quickstart")?.id
+    ?? adoptGoal("openxpli/readme-quickstart", "install conversion", 0, ["doc engagement must not drop"], "Specified when the dogfood connector was seeded.");
+  db.prepare("UPDATE experiments SET goal_id = ? WHERE process_id = 'openxpli/readme-quickstart' AND goal_id IS NULL").run(gid);
+  // The demo exercises the real model, so it gets a real ratified goal and both
+  // runs are bound to it.
+
   console.log("enrolled demo process openxpli/readme-quickstart with 2 experiments (1 completed, 1 running)");
 }
 
@@ -56,6 +63,41 @@ switch (cmd) {
     break;
   }
   case "harvest": harvest(); break;
+  case "goals": {
+    const { proposeGoals, listGoals, ratifiedGoal, regoal, parseGuardrails, ensureGoalsBackfilled } = await import("./goals.js");
+    ensureGoalsBackfilled();
+    const id = process.argv[3];
+    if (!id) { console.error("usage: openxpli goals <connector> [--regoal]"); process.exitCode = 1; break; }
+    try {
+      const live = ratifiedGoal(id);
+      if (live && !process.argv.includes("--regoal")) {
+        console.log(`${id} is accountable to: ${live.metric}${live.inverse ? " (lower is better)" : ""}`);
+        const gr = parseGuardrails(live.guardrails);
+        console.log(gr.length ? gr.map((g) => `  guardrail: ${g.metric} ${g.direction}`).join("\n") : "  guardrail: none declared");
+        if (live.record_id) console.log(`  ledger: ${live.record_id}`);
+        console.log(`\nTo change it: openxpli goals ${id} --regoal`);
+        break;
+      }
+      const rows = process.argv.includes("--regoal") ? regoal(id) : proposeGoals(id);
+      console.log(`North stars proposed for ${id} — ratify one with \`openxpli ratify <goal-id>\`:\n`);
+      for (const g of rows) {
+        console.log(`  ${g.id}  ${g.metric}${g.inverse ? " (lower is better)" : ""}`);
+        console.log(`      ${g.rationale}`);
+        const gr = parseGuardrails(g.guardrails);
+        if (gr.length) console.log(`      guardrails: ${gr.map((x) => `${x.metric} ${x.direction}`).join(", ")}`);
+        console.log("");
+      }
+      void listGoals;
+    } catch (e) { console.error(String(e instanceof Error ? e.message : e)); process.exitCode = 1; }
+    break;
+  }
+  case "ratify": {
+    const { ratifyGoal } = await import("./goals.js");
+    const { maybeAnalyze } = await import("./scout.js");
+    try { console.log(ratifyGoal(process.argv[3])); maybeAnalyze(); }
+    catch (e) { console.error(String(e instanceof Error ? e.message : e)); process.exitCode = 1; }
+    break;
+  }
   case "tick": {
     const { browserReads } = await import("./browser-scout.js");
     await browserReads().catch((e) => console.log(`tick: browser reads skipped — ${String(e).slice(0, 140)}`));
@@ -167,7 +209,7 @@ switch (cmd) {
     break;
   }
   case "enroll": {
-    if (process.argv[3] === "--demo") { enrollDemo(); break; }
+    if (process.argv[3] === "--demo") { await enrollDemo(); break; }
     const { enrollProcess } = await import("./enroll.js");
     const flag = (n: string) => { const i = process.argv.indexOf(`--${n}`); return i > -1 ? process.argv[i + 1] : undefined; };
     const guardrails = process.argv.flatMap((a, i) => (a === "--guardrail" ? [process.argv[i + 1]] : []));

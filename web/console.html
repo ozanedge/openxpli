@@ -147,6 +147,12 @@
   @keyframes nodePop { 0%{transform:scale(.6)} 70%{transform:scale(1.15)} 100%{transform:scale(1)} }
   .jlbl { font-size:11px; font-weight:600; color:var(--text-2); }
   .autobanner { border:1px solid #BFE4CD; background:#EAF6EF; border-radius:8px; padding:10px 14px; font-size:12.5px; }
+  .goalcard { border:1px solid var(--border-1); border-radius:8px; background:var(--surface-2); margin-top:8px; padding:13px 16px; }
+  .goalcard.unset { border-color:#E8CF9A; background:#FFFBF2; }
+  .goalmetric { font-size:15.5px; font-weight:600; letter-spacing:-0.01em; }
+  .grail { display:inline-flex; align-items:center; gap:5px; font:500 11px var(--mono); border:1px solid var(--border-1); border-radius:5px; padding:2px 8px; color:var(--text-2); background:var(--surface-1); }
+  .grail b { color:var(--text); font-weight:600; }
+  .goalnote { font-size:11.5px; color:var(--text-2); line-height:1.5; margin-top:10px; padding-top:9px; border-top:1px solid var(--border-1); }
   .collhead { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; padding:2px 0; }
   .collhead:hover .plabel { color:var(--text); }
   .explist { border:1px solid var(--border-1); border-radius:8px; background:var(--surface-2); margin-top:8px; }
@@ -268,11 +274,16 @@ function fmtX(m, digits=2){ return "×" + Number(m).toFixed(digits); }
 
 function renderCards(s){
   const winRate = s.winRate == null ? "—" : Math.round(s.winRate*100) + "%";
+  const bg = s.blendedByGoal || [];
   const blended = s.blendedMultiple == null ? "—" : fmtX(s.blendedMultiple);
+  const blendedSub = s.blendedMultiple != null ? `compounded across ${bg[0].wins} win${bg[0].wins===1?"":"s"} on ${bg[0].metric}`
+    : bg.length > 1 ? `${bg.length} goals — multiples only compound within one metric`
+    : s.unattributedWins ? `${s.unattributedWins} win${s.unattributedWins===1?"":"s"} predate goals — not attributable`
+    : "no wins yet";
   const cards = [
     ["Active processes", s.processes, `across ${s.tools} tool${s.tools===1?"":"s"}, 0 integrations`],
     ["Experiments won", s.won, `${s.failed} failed`],
-    ["Blended multiple", blended, "compounded across won experiments", s.blendedMultiple > 1 ? "good" : ""],
+    ["Blended multiple", blended, blendedSub, s.blendedMultiple > 1 ? "good" : ""],
     ["Win rate", winRate, `${s.won} of ${s.won+s.failed} beat control`, s.winRate > 0.5 ? "good" : ""],
     ["Regressions caught", s.regressionsCaught, `${s.validated} holdout${s.validated===1?"":"s"} validated`, s.regressionsCaught > 0 ? "bad" : ""],
     ["Observations", s.observations, `${s.gaps} recorded gap${s.gaps===1?"":"s"}`],
@@ -457,26 +468,33 @@ function renderProcesses(all){
   }
   window.__procs = all;
   const q = (document.getElementById("proc-search")?.value ?? "").toLowerCase();
-  const procs = q ? all.filter(p => (p.id + " " + p.tool + " " + p.metric).toLowerCase().includes(q)) : all;
+  const procs = q ? all.filter(p => (p.id + " " + p.tool + " " + p.metric + " " + (p.goal ? p.goal.metric : "")).toLowerCase().includes(q)) : all;
   if (window.__procInit == null && procs.length){ selProc = procs[0].id; window.__procInit = 1; }
   if (selProc != null && !procs.some(p => p.id === selProc)) selProc = null;
   const fmtWhen = ts => ts ? new Date(ts).toISOString().slice(0,10) : "—";
   document.getElementById("proc-table").innerHTML =
-    `<tr><th>Connector</th><th>Tool</th><th>Status</th><th>Autonomy</th><th>Δ vs control</th><th>Updated</th></tr>` +
+    `<tr><th>Connector</th><th>Tool</th><th>Goal</th><th>Status</th><th>Autonomy</th><th>Δ vs control</th><th>Updated</th></tr>` +
     procs.map(p => {
       const m = p.latest?.final_multiple ?? p.latest?.last_multiple;
       const cls = m == null ? "" : m > 1 ? "good" : "bad";
       const sel = p.id === selProc;
+      // A live run outranks the connector's stored status, which lags behind it.
+      const oc = p.outcomes || {};
       const st = p.status === "shadow" ? ["learning","analyzing pulsing"]
-        : p.status === "proposed" ? ["choose experiment","choose"]
+        : p.status === "goal" ? ["set goal","choose"]
         : p.status === "reverted" ? ["reverted","regressed"]
-        : p.latest?.status === "running" ? ["experiment running","open"] : ["running","validated"];
+        : (p.latest?.status === "running" || p.latest?.status === "launching") ? ["experiment running","open"]
+        : oc.open ? ["awaiting review","open"]
+        : oc.validating ? ["in holdout","analyzing"]
+        : p.status === "proposed" ? ["choose experiment","choose"]
+        : ["running","validated"];
       const row = `<tr class="row ${sel?"sel":""}" onclick="selectProc('${p.id}')">
         <td class="mono"><span class="chev">▸</span>${p.id}</td><td>${p.tool}</td>
+        <td>${p.goal ? `${p.goal.metric}${p.goal.inverse ? ' <span class="sub">↓</span>' : ""}` : `<span class="sub">not set</span>`}</td>
         <td><span class="badge b-${st[1]}">${st[0]}</span></td>
         <td>${p.autonomy}</td><td class="mono ${cls}">${m==null?"—":fmtX(m)}</td>
         <td class="mono">${fmtWhen(p.latest?.updated)}</td></tr>`;
-      return row + (sel ? `<tr class="detailrow"><td colspan="6"><div class="procpanel">
+      return row + (sel ? `<tr class="detailrow"><td colspan="7"><div class="procpanel">
         <div class="phead"><span class="chev" style="transform:rotate(90deg);color:var(--azure-deep)">▸</span>
           <span class="pid">${p.id}</span><span class="cchip">${p.tool}</span><span class="cchip">${p.autonomy}</span>
           <span style="flex:1"></span>
@@ -486,7 +504,7 @@ function renderProcesses(all){
       </div></td></tr>` : "");
     }).join("");
   if (!procs.length) document.getElementById("proc-table").innerHTML +=
-    `<tr><td colspan="6" style="padding:18px" class="sub">No connectors yet — Add Connector to begin.</td></tr>`;
+    `<tr><td colspan="7" style="padding:18px" class="sub">No connectors yet — Add Connector to begin.</td></tr>`;
 }
 const OPENXPLI_SVG = `<svg class="jr" viewBox="0 0 60 60">
   <defs><linearGradient id="jrg" x1="30" y1="5" x2="54.6" y2="34.3" gradientUnits="userSpaceOnUse">
@@ -501,39 +519,47 @@ const OPENXPLI_SVG = `<svg class="jr" viewBox="0 0 60 60">
   </g>
 </svg>`;
 function stageOf(p){
-  if (p.autonomy === "auto-merge") return 6;
-  if (p.autonomy === "auto-start") return 5;
-  if (p.latest && (p.latest.status === "running" || p.latest.status === "launching")) return 3;
-  if (p.latest) return 4; // first experiment decided; next rungs are earned
-  if (p.status === "proposed") return 2;
+  const oc = p.outcomes || {};
+  if (p.autonomy === "auto-merge") return 8;
+  if (p.autonomy === "auto-start") return 7;
+  if (oc.open || oc.validating) return 6;      // a verdict is in, awaiting review or holdout
+  if (oc.resolved) return 6;
+  if (p.latest && (p.latest.status === "running" || p.latest.status === "launching")) return 5;
+  if (p.status === "proposed") return 4;
+  if (p.status === "goal") return 3;
   return 1;
 }
 function stepper(p){
   const st = stageOf(p);
   const auto = p.autonomy === "auto-start" || p.autonomy === "auto-merge";
+  const oc = p.outcomes || {};
   const steps = [
     ["Connected","read-only"], ["Learning","analyzing the connector"],
-    ["Choose experiment","top 3 suggestions"], ["Experiment running","hourly reads vs control"],
+    ["Set goal","what we optimize for"],
+    ["Choose experiment","top 3 against the goal"], ["Experiment running","hourly reads vs control"],
+    ["Results & outcome","verdict, review, holdout"],
     ["Self-starting","starts its own experiments"], ["Autonomous","merges winners, keeps iterating"],
   ];
   // done: everything below the current rung; steady autonomy rungs show as active
-  const doneN = p.autonomy === "auto-merge" ? 6 : p.autonomy === "auto-start" ? 5
-    : (p.latest && p.latest.status !== "running" && p.latest.status !== "launching") ? 4 : Math.max(1, st - 1);
-  const activeN = p.autonomy === "auto-merge" ? 6 : p.autonomy === "auto-start" ? 5 : (st <= 3 ? st + (p.status==="shadow"||p.status==="proposed"||p.latest?.status==="running" ? 1 : 0) - (st===1?0:1) : 0);
-  // simpler: active node = current stage when not yet earned-autonomy
-  const act = auto ? (p.autonomy === "auto-merge" ? 6 : 5)
-    : (p.latest && (p.latest.status === "running" || p.latest.status === "launching")) ? 4
-    : p.status === "shadow" ? 2 : p.status === "proposed" ? 3 : 0;
-  const fill = ((Math.max(doneN, act) - 1) / 5) * 100;   // land exactly on node centers
+  const doneN = p.autonomy === "auto-merge" ? 8 : p.autonomy === "auto-start" ? 7
+    : (oc.resolved && !oc.open && !oc.validating) ? 6
+    : (p.latest && p.latest.status !== "running" && p.latest.status !== "launching") ? 5 : Math.max(1, st - 1);
+  const act = auto ? (p.autonomy === "auto-merge" ? 8 : 7)
+    : (oc.open || oc.validating) ? 6
+    : (p.latest && (p.latest.status === "running" || p.latest.status === "launching")) ? 5
+    : p.status === "shadow" ? 2 : p.status === "goal" ? 3 : p.status === "proposed" ? 4 : 0;
+  // Anything before the active rung is, by definition, behind us.
+  const done = Math.max(doneN, act - 1);
+  const fill = ((Math.max(done, act) - 1) / (steps.length - 1)) * 100;   // land exactly on node centers
   return `<div class="journey">
     <div class="jrail"></div>
     <div class="jfill" style="width:calc((100% - 98px) * ${Math.min(100,fill)/100})"></div>
     <div class="jsteps">${steps.map(([lbl, sub], i) => {
       const n = i + 1;
-      const done = n <= doneN && n !== act;
+      const isDone = n <= done && n !== act;
       const now = n === act;
-      return `<span class="jstep ${done?"done":""} ${now?"now":""}">
-        <span class="jnode">${done ? "✓" : n}${now ? OPENXPLI_SVG : ""}</span>
+      return `<span class="jstep ${isDone?"done":""} ${now?"now":""}">
+        <span class="jnode">${isDone ? "✓" : n}${now ? OPENXPLI_SVG : ""}</span>
         <span class="jlbl">${lbl}</span><span class="jsub">${sub}</span>
       </span>`;
     }).join("")}</div></div>`;
@@ -581,8 +607,108 @@ function procDetail(p){
     ${stepper(p)}
     ${autonomySect}
     ${analyzeNote}
+    ${goalSect(p)}
     ${mapSect}
-    ${cands}`;
+    ${cands}
+    ${resultsSect(p)}`;
+}
+window.__resColl = window.__resColl || {};
+function toggleRes(id){ window.__resColl[id] = !window.__resColl[id]; renderProcesses(window.__procs || []); }
+const REVIEW_BADGE = { open:["awaiting review","open"], merged:["merged","merged"], rejected:["rejected","rejected"],
+  reopened:["reopened","open"], "auto-reverted":["auto-reverted","reverted"] };
+const HOLD_BADGE = { validating:["holdout running","open"], validated:["validated","validated"],
+  regressed:["regressed","regressed"], cancelled:["holdout cancelled","rejected"], none:null };
+function resultsSect(p){
+  const done = (p.experiments||[]).filter(e => e.outcome);
+  if (!done.length) return "";
+  const oc = p.outcomes || {};
+  const open = !window.__resColl[p.id];
+  const d10 = ts => new Date(ts).toISOString().slice(0,10);
+  const rows = done.map(e => {
+    const o = e.outcome;
+    const rb = REVIEW_BADGE[o.review_state] || [o.review_state,"open"];
+    const hb = HOLD_BADGE[o.holdout_state];
+    return `<div class="exprow">
+      <span class="badge b-${o.verdict==="won"?"validated":"regressed"}">${o.verdict}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
+        <div class="sub" style="margin-top:3px;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+          <span class="badge b-${rb[1]}" style="margin-left:0">${rb[0]}</span>
+          ${hb ? `<span class="badge b-${hb[1]}" style="margin-left:0">${hb[0]}${o.holdout_multiple!=null?" "+fmtX(o.holdout_multiple):""}</span>` : ""}
+          <span class="mono" style="font-size:10.5px">decided ${d10(e.ends_at)}</span>
+          ${o.goal_id ? `<span class="mono" style="font-size:10.5px">· goal ${o.goal_id}</span>` : `<span class="mono" style="font-size:10.5px;color:var(--scarlet)">· no goal recorded</span>`}
+        </div>
+      </div>
+      <span class="mono" style="font-weight:600;color:${o.verdict==="won"?"var(--green)":"var(--scarlet)"}">${o.final_multiple==null?"—":fmtX(o.final_multiple)}</span>
+      ${o.record_id ? `<button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();openRecord('${o.record_id}')">record →</button>` : ""}
+    </div>`;
+  }).join("");
+  return `<div class="sect">
+    <div class="collhead" onclick="event.stopPropagation();toggleRes('${p.id}')">
+      <span style="display:inline-block;transition:transform .2s;transform:rotate(${open?90:0}deg)">▸</span>
+      <span class="plabel">Results &amp; outcomes</span>
+      <span class="mono" style="font-size:10.5px;color:var(--text-2)">${done.length}</span>
+      ${oc.open ? `<span class="badge b-open" style="margin-left:4px">${oc.open} awaiting review</span>` : ""}
+      ${oc.validating ? `<span class="badge b-analyzing" style="margin-left:4px">${oc.validating} in holdout</span>` : ""}
+    </div>
+    ${open ? `<div class="explist">${rows}</div>` : ""}
+  </div>`;
+}
+window.__goalColl = window.__goalColl || {};
+function toggleGoal(id){ window.__goalColl[id] = !window.__goalColl[id]; renderProcesses(window.__procs || []); }
+function railChip(g){
+  return `<span class="grail"><b>${g.metric}</b> ${g.direction === "must-not-rise" ? "must not rise" : "must not drop"}</span>`;
+}
+function goalSect(p){
+  if (p.status === "shadow") return "";           // still analyzing; nothing to choose yet
+  const open = !window.__goalColl[p.id];
+  const g = p.goal, opts = p.goal_options || [];
+  let body;
+  if (g){
+    const rails = (g.guardrails || []);
+    body = `<div class="goalcard">
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+        <span class="goalmetric">${g.metric}</span>
+        <span class="cchip">${g.inverse ? "lower is better" : "higher is better"}</span>
+        <span style="flex:1"></span>
+        ${g.record_id ? `<button class="btn ghost" style="padding:3px 10px;font-size:11.5px" onclick="event.stopPropagation();openRecord('${g.record_id}')">${g.record_id} →</button>` : `<span class="sub" style="font-size:11px">adopted, not ratified through review</span>`}
+      </div>
+      <div class="sub" style="margin-top:6px;line-height:1.55">${g.rationale}</div>
+      <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:11px">
+        <span class="plabel">Guardrails</span>
+        ${rails.length ? rails.map(railChip).join("") : `<span class="sub">none declared</span>`}
+      </div>
+      <div class="goalnote">Every experiment on this connector measures <b>${g.metric}</b>. Accepting an experiment cannot change that — only ratifying a new goal can, and that resets earned autonomy.${rails.length ? " Guardrails are checked at review; they are not read automatically yet." : ""}</div>
+    </div>`;
+  } else if (opts.length){
+    body = `<div class="goalcard unset">
+      <div style="font-size:12.5px;line-height:1.55">Choose what <b>${p.tool}</b> is accountable to. Every experiment below will be measured against it, and no experiment can change it once set.</div>
+      <div class="explist" style="margin-top:11px">
+        ${opts.map(o => `<div class="exprow">
+          <span class="badge b-choose">proposed</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600">${o.metric} <span class="cchip" style="font-weight:400">${o.inverse ? "lower is better" : "higher is better"}</span></div>
+            <div class="sub" style="margin-top:3px;line-height:1.5">${o.rationale}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${(o.guardrails||[]).map(railChip).join("") || `<span class="sub" style="font-size:11px">no guardrails</span>`}</div>
+          </div>
+          <button class="btn primary" style="padding:4px 12px" onclick="event.stopPropagation();post('/api/ratify',{goal:'${o.id}'})">Ratify</button>
+        </div>`).join("")}
+      </div>
+    </div>`;
+  } else {
+    body = `<div class="goalcard unset"><div style="font-size:12.5px">No north star set and none proposed.
+      <button class="btn" style="margin-left:8px;padding:3px 10px" onclick="event.stopPropagation();post('/api/regoal',{id:'${p.id}'})">Propose goals</button></div></div>`;
+  }
+  return `<div class="sect">
+    <div class="collhead" onclick="event.stopPropagation();toggleGoal('${p.id}')">
+      <span style="display:inline-block;transition:transform .2s;transform:rotate(${open?90:0}deg)">▸</span>
+      <span class="plabel">Goal</span>
+      <span class="mono" style="font-size:10.5px;color:var(--text-2)">${g ? "north star" : "not set"}</span>
+      <span style="flex:1"></span>
+      ${g ? `<button class="btn ghost" style="padding:3px 10px;font-size:11.5px" onclick="event.stopPropagation();if(confirm('Change the north star for ${p.id}?\\n\\nExperiments already running finish against the current goal. Earned autonomy is reset, because those wins were measured against a different definition of winning.'))post('/api/regoal',{id:'${p.id}'})">Change goal</button>` : ""}
+    </div>
+    ${open ? body : ""}
+  </div>`;
 }
 const ANALYZE_MSGS = ["Reading through the connector…","Mapping what's already running…","Measuring current baselines…","Ranking the biggest opportunities…","Writing up hypotheses…"];
 function analyzeMsg(p){ return ANALYZE_MSGS[Math.floor(Date.now()/3500) % ANALYZE_MSGS.length]; }
@@ -618,11 +744,13 @@ function confetti(){
   })(t0);
 }
 const STAGE_TOASTS = {
-  2: p => `<b>Analysis complete.</b> OpenXPLI found 3 experiments worth running on ${p.tool} — pick your first.`,
-  3: p => `<b>Experiment live!</b> ${p.tool} is now testing against control, one hourly read at a time.`,
-  4: p => `<b>First experiment decided.</b> Check Events for the verdict and receipts.`,
-  5: p => `<b>Self-starting unlocked.</b> ${p.tool} now proposes and starts its own experiments — you still approve every merge.`,
-  6: p => `<b>Fully autonomous.</b> ${p.tool} runs the whole loop now: experiment, merge winners, iterate. Every action stays on the ledger.`,
+  2: p => `<b>Analysis complete.</b> OpenXPLI proposed what ${p.tool} could be held accountable to — ratify a north star to unlock experiments.`,
+  3: p => `<b>Goal set.</b> ${p.tool} is accountable to <b>${p.goal ? p.goal.metric : "its north star"}</b>. Every experiment from here is measured against it.`,
+  4: p => `<b>Experiment chosen.</b> Measured against ${p.goal ? p.goal.metric : "the goal"}.`,
+  5: p => `<b>Experiment live!</b> ${p.tool} is now testing against control, one hourly read at a time.`,
+  6: p => `<b>Verdict in.</b> The result is recorded and waiting on review — the trailing holdout keeps checking it.`,
+  7: p => `<b>Self-starting unlocked.</b> ${p.tool} now proposes and starts its own experiments — you still approve every merge.`,
+  8: p => `<b>Fully autonomous.</b> ${p.tool} runs the whole loop now: experiment, merge winners, iterate. Every action stays on the ledger.`,
 };
 function celebrate(p, from, to){
   confetti();
@@ -639,7 +767,7 @@ function expListSect(p){
       <div style="flex:1;min-width:0">
         <div style="font-size:12.5px;font-weight:500">${c.field}: ${c.control_value} → <b>${c.variant_value}</b></div>
         <div class="sub" style="margin-top:2px">${c.rationale}</div>
-        <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${c.metric}${c.inverse?" (1/x)":""} · expected ~×${c.expected_multiple.toFixed(2)}</div>
+        <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${p.goal && c.metric === p.goal.metric ? "✓ " : "⚠ off-goal: "}${c.metric}${c.inverse?" (1/x)":""} · expected ~×${c.expected_multiple.toFixed(2)}</div>
       </div>
       <button class="btn primary" style="padding:4px 12px" onclick="event.stopPropagation();post('/api/accept',{candidate:'${c.id}'})">Accept</button>
       <button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();post('/api/dismiss',{candidate:'${c.id}'})">Dismiss</button>
@@ -669,7 +797,7 @@ function expListSect(p){
       <span class="mono" style="font-weight:600;${e.last_multiple==null?"color:var(--text-2)":e.last_multiple>1?"color:var(--green)":"color:var(--scarlet)"}">${e.last_multiple==null?"—":fmtX(e.last_multiple)+"…"}</span>
     </div>`);
   }
-  for (const e of exps.filter(e => e.status === "won" || e.status === "failed")){
+  for (const e of exps.filter(e => (e.status === "won" || e.status === "failed") && !e.outcome)){
     const ho = e.holdout_status === "validated" ? ` <span style="color:var(--green)">✓ validated</span>`
       : e.holdout_status === "regressed" ? ` <span style="color:var(--scarlet)">✗ regressed</span>`
       : e.holdout_status === "validating" ? ` <span class="sub">holdout…</span>` : "";
@@ -683,12 +811,17 @@ function expListSect(p){
       ${e.record_id ? `<button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();openRecord('${e.record_id}')">event →</button>` : ""}
     </div>`);
   }
-  if (!rows.length) return "";
+  if (!rows.length && !p.goal) return "";
   const open = !window.__coll[p.id];
+  if (!rows.length) return `<div class="sect">
+    <div class="collhead"><span class="plabel">Experiments</span></div>
+    <div class="explist" style="padding:12px 14px"><span class="sub">Scouting experiments against ${p.goal.metric}…</span></div>
+  </div>`;
   return `<div class="sect">
     <div class="collhead" onclick="event.stopPropagation();toggleExps('${p.id}')">
       <span style="display:inline-block;transition:transform .2s;transform:rotate(${open?90:0}deg)">▸</span>
       <span class="plabel">Experiments</span><span class="mono" style="font-size:10.5px;color:var(--text-2)">${rows.length}</span>
+      ${p.goal ? `<span class="mono" style="font-size:10.5px;color:var(--text-2)">· measured against ${p.goal.metric}</span>` : ""}
       <span style="flex:1"></span>
       <button class="btn ghost" style="padding:3px 10px;font-size:11.5px" onclick="event.stopPropagation();post('/api/rescout',{id:'${p.id}'})">↻ New suggestions</button>
     </div>
@@ -811,7 +944,7 @@ function expListSect(p){
       <div style="flex:1;min-width:0">
         <div style="font-size:12.5px;font-weight:500">${c.field}: ${c.control_value} → <b>${c.variant_value}</b></div>
         <div class="sub" style="margin-top:2px">${c.rationale}</div>
-        <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${c.metric}${c.inverse?" (1/x)":""} · expected ~×${c.expected_multiple.toFixed(2)}</div>
+        <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${p.goal && c.metric === p.goal.metric ? "✓ " : "⚠ off-goal: "}${c.metric}${c.inverse?" (1/x)":""} · expected ~×${c.expected_multiple.toFixed(2)}</div>
       </div>
       <button class="btn primary" style="padding:4px 12px" onclick="event.stopPropagation();post('/api/accept',{candidate:'${c.id}'})">Accept</button>
       <button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();post('/api/dismiss',{candidate:'${c.id}'})">Dismiss</button>
@@ -841,7 +974,7 @@ function expListSect(p){
       <span class="mono" style="font-weight:600;${e.last_multiple==null?"color:var(--text-2)":e.last_multiple>1?"color:var(--green)":"color:var(--scarlet)"}">${e.last_multiple==null?"—":fmtX(e.last_multiple)+"…"}</span>
     </div>`);
   }
-  for (const e of exps.filter(e => e.status === "won" || e.status === "failed")){
+  for (const e of exps.filter(e => (e.status === "won" || e.status === "failed") && !e.outcome)){
     const ho = e.holdout_status === "validated" ? ` <span style="color:var(--green)">✓ validated</span>`
       : e.holdout_status === "regressed" ? ` <span style="color:var(--scarlet)">✗ regressed</span>`
       : e.holdout_status === "validating" ? ` <span class="sub">holdout…</span>` : "";
@@ -855,12 +988,17 @@ function expListSect(p){
       ${e.record_id ? `<button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();openRecord('${e.record_id}')">event →</button>` : ""}
     </div>`);
   }
-  if (!rows.length) return "";
+  if (!rows.length && !p.goal) return "";
   const open = !window.__coll[p.id];
+  if (!rows.length) return `<div class="sect">
+    <div class="collhead"><span class="plabel">Experiments</span></div>
+    <div class="explist" style="padding:12px 14px"><span class="sub">Scouting experiments against ${p.goal.metric}…</span></div>
+  </div>`;
   return `<div class="sect">
     <div class="collhead" onclick="event.stopPropagation();toggleExps('${p.id}')">
       <span style="display:inline-block;transition:transform .2s;transform:rotate(${open?90:0}deg)">▸</span>
       <span class="plabel">Experiments</span><span class="mono" style="font-size:10.5px;color:var(--text-2)">${rows.length}</span>
+      ${p.goal ? `<span class="mono" style="font-size:10.5px;color:var(--text-2)">· measured against ${p.goal.metric}</span>` : ""}
       <span style="flex:1"></span>
       <button class="btn ghost" style="padding:3px 10px;font-size:11.5px" onclick="event.stopPropagation();post('/api/rescout',{id:'${p.id}'})">↻ New suggestions</button>
     </div>

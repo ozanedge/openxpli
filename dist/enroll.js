@@ -1,5 +1,6 @@
 import { openDb } from "./db.js";
 import { HOUR_MS } from "./paths.js";
+import { ratifiedGoal, adoptGoal } from "./goals.js";
 const AUTONOMY = ["shadow", "human-gated", "auto-merge"];
 export function enrollProcess(o) {
     if (!o.id || !/^[a-z0-9][a-z0-9._\/-]{2,80}$/i.test(o.id))
@@ -25,7 +26,10 @@ export function enrollProcess(o) {
             throw new Error(`enroll: ${o.id} is already enrolled`);
         throw e;
     }
-    return `enrolled ${o.id} (${o.tool}, metric: ${o.metric}${o.inverse ? " 1/x" : ""}, autonomy: ${autonomy})`;
+    // --metric on enroll IS a deliberate human choice of north star, so it is
+    // ratified as one — with a ledger record — rather than left implicit.
+    const g = adoptGoal(o.id, o.metric, o.inverse ? 1 : 0, o.guardrails ?? [], "Specified by the operator at enroll.");
+    return `enrolled ${o.id} (${o.tool}, goal: ${o.metric}${o.inverse ? " 1/x" : ""} -> ${g}, autonomy: ${autonomy})`;
 }
 export function startExperiment(processId, field, control, variant, days = 7, status = "running") {
     if (!field || !control || !variant)
@@ -47,6 +51,12 @@ export function startExperiment(processId, field, control, variant, days = 7, st
     while (db.prepare("SELECT 1 FROM experiments WHERE id = ?").get(id))
         id = `${short}/${stamp}-${n++}`;
     const now = Date.now();
-    db.prepare("INSERT INTO experiments (id, process_id, field, control_value, variant_value, started_at, ends_at, status) VALUES (?,?,?,?,?,?,?,?)").run(id, processId, field, control, variant, now, now + days * 24 * HOUR_MS, status);
+    // An experiment is bound to the goal it started under, so re-goaling the
+    // connector mid-flight cannot retroactively change what this run was for.
+    // No goal means there is nothing for the run to be measured against.
+    const goal = ratifiedGoal(processId);
+    if (!goal)
+        throw new Error(`start: ${processId} has no ratified goal — run \`openxpli goals ${processId}\` and ratify one first`);
+    db.prepare("INSERT INTO experiments (id, process_id, field, control_value, variant_value, started_at, ends_at, status, goal_id) VALUES (?,?,?,?,?,?,?,?,?)").run(id, processId, field, control, variant, now, now + days * 24 * HOUR_MS, status, goal?.id ?? null);
     return `started ${id}: ${field}: ${control} -> ${variant} (${days}d run; first reads on next harvest)`;
 }

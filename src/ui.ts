@@ -11,6 +11,8 @@ import { enrollProcess, startExperiment } from "./enroll.js";
 import { addSource, acceptCandidate, dismissCandidate, listCandidates, maybeAnalyze, ANALYZE_MS, spawnDetachedScout } from "./scout.js";
 import { harvest } from "./harvest.js";
 import { autonomyStats, setAutonomy } from "./autonomy.js";
+import { ratifyGoal, regoal, listGoals, ratifiedGoal, parseGuardrails } from "./goals.js";
+import { outcomeCounts, ensureOutcomesBackfilled } from "./outcomes.js";
 
 // Normal CDF via the Abramowitz–Stegun erf approximation.
 function phi(z: number): number {
@@ -30,7 +32,15 @@ function summary(db: ReturnType<typeof openDb>) {
   const procs = db.prepare("SELECT COUNT(*) c, COUNT(DISTINCT tool) t FROM processes").get() as { c: number; t: number };
   const won = (db.prepare("SELECT COUNT(*) c FROM experiments WHERE status='won'").get() as { c: number }).c;
   const failed = (db.prepare("SELECT COUNT(*) c FROM experiments WHERE status='failed'").get() as { c: number }).c;
-  const blended = (db.prepare("SELECT EXP(SUM(LN(final_multiple))) b FROM experiments WHERE status='won' AND final_multiple > 0").get() as { b: number | null }).b;
+  // Multiples only compound within one metric. The old query multiplied a CTR
+  // lift by a CPC lift by an open-rate lift and printed one number.
+  const byGoal = db.prepare(
+    `SELECT o.goal_id, g.metric, COUNT(*) AS wins, EXP(SUM(LN(o.final_multiple))) AS blended
+     FROM outcomes o JOIN goals g ON g.id = o.goal_id
+     WHERE o.verdict = 'won' AND o.final_multiple > 0
+     GROUP BY o.goal_id ORDER BY wins DESC`
+  ).all() as { goal_id: string; metric: string; wins: number; blended: number }[];
+  const blended = byGoal.length === 1 ? byGoal[0].blended : null;
   const regressed = (db.prepare("SELECT COUNT(*) c FROM holdouts WHERE status='regressed'").get() as { c: number }).c;
   const validated = (db.prepare("SELECT COUNT(*) c FROM holdouts WHERE status='validated'").get() as { c: number }).c;
   const obs = db.prepare("SELECT COUNT(*) c, COALESCE(SUM(missing),0) g FROM observations").get() as { c: number; g: number };
@@ -38,6 +48,8 @@ function summary(db: ReturnType<typeof openDb>) {
     processes: procs.c, tools: procs.t,
     won, failed, winRate: won + failed > 0 ? won / (won + failed) : null,
     blendedMultiple: blended,
+    blendedByGoal: byGoal,
+    unattributedWins: (db.prepare("SELECT COUNT(*) c FROM outcomes WHERE verdict='won' AND goal_id IS NULL").get() as { c: number }).c,
     regressionsCaught: regressed, validated,
     observations: obs.c, gaps: obs.g,
   };
@@ -84,6 +96,7 @@ function records(): { id: string; title: string; outcome: string; process: strin
 }
 
 function processes(db: ReturnType<typeof openDb>) {
+  ensureOutcomesBackfilled();
   maybeAnalyze();
   const procs = db.prepare("SELECT * FROM processes ORDER BY created_at").all() as Record<string, unknown>[];
   for (const p of procs) {
@@ -106,6 +119,14 @@ function processes(db: ReturnType<typeof openDb>) {
     p.analyze_eta = (p.created_at as number) + ANALYZE_MS;
     p.autonomy_stats = autonomyStats(p.id as string);
     p.map = (db.prepare("SELECT content FROM knowledge WHERE source_id = ? AND kind = 'map'").get(p.id as string) as { content: string } | undefined)?.content ?? null;
+    const g = ratifiedGoal(p.id as string);
+    p.goal = g ? { ...g, guardrails: parseGuardrails(g.guardrails) } : null;
+    p.goal_options = listGoals(p.id as string).map((o) => ({ ...o, guardrails: parseGuardrails(o.guardrails) }));
+    p.outcomes = outcomeCounts(p.id as string);
+    p.experiments = (p.experiments as Record<string, unknown>[]).map((e) => ({
+      ...e,
+      outcome: db.prepare("SELECT verdict, review_state, holdout_state, holdout_multiple, goal_id FROM outcomes WHERE experiment_id = ?").get(e.id as string) ?? null,
+    }));
   }
   return procs;
 }
@@ -148,6 +169,8 @@ export function ui(port: number, openBrowser: boolean): void {
               msg = `rescouting ${b.id} — fresh suggestions shortly`;
             }
             else if (url.pathname === "/api/autonomy") { msg = setAutonomy(b.id, b.level); harvest(); }
+            else if (url.pathname === "/api/ratify") { msg = ratifyGoal(b.goal); maybeAnalyze(); }
+            else if (url.pathname === "/api/regoal") { const r = regoal(b.id); msg = `re-opened goal selection for ${b.id} — ${r.length} north stars proposed`; }
             else { res.writeHead(404); return res.end(); }
             json(res, { ok: true, message: msg });
           } catch (e) {

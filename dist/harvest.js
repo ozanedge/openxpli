@@ -6,6 +6,7 @@ import { maybeAnalyze } from "./scout.js";
 import { existsSync } from "node:fs";
 import { playbookFor, BROWSER_PROFILE } from "./browser-scout.js";
 import { runAutonomy } from "./autonomy.js";
+import { recordOutcome, setHoldoutState } from "./outcomes.js";
 import { writeDecisionRecord, appendValidation } from "./ledger.js";
 import { HEARTBEAT_PATH, HOUR_MS, DEFAULT_RUN_HOURS, ensureDirs, DATA_DIR, HOLDOUT_SHARE, VALIDATION_HOURS, REGRESS_WINDOW_HOURS, } from "./paths.js";
 // The hourly read is a data contract, not a cron contract: every invocation
@@ -81,6 +82,7 @@ export function harvest(now = Date.now()) {
                 db.prepare("UPDATE experiments SET status = ?, final_multiple = ? WHERE id = ?").run(status, finalMultiple, exp.id);
                 const rec = writeDecisionRecord(proc, exp, finalMultiple, counts.ok ?? 0, counts.miss ?? 0);
                 db.prepare("UPDATE experiments SET record_id = ? WHERE id = ?").run(rec, exp.id);
+                recordOutcome({ ...exp, status, final_multiple: finalMultiple }, status, finalMultiple, rec);
                 // Trailing regression finder: a won variant is promoted, but a small
                 // share stays on the old control to validate the win persists.
                 if (status === "won") {
@@ -128,6 +130,7 @@ export function harvest(now = Date.now()) {
                 const vsHoldout = sustainedDrop ? (trail.m ?? 1) : (last?.multiple ?? 1);
                 const outcome = vsHoldout > 1.0 ? "validated" : "regressed";
                 db.prepare("UPDATE holdouts SET status = ?, final_multiple = ? WHERE experiment_id = ?").run(outcome, vsHoldout, exp.id);
+                setHoldoutState(exp.id, outcome, vsHoldout);
                 if (outcome === "regressed")
                     db.prepare("UPDATE processes SET status = 'reverted' WHERE id = ?").run(h.process_id);
                 if (exp.record_id)

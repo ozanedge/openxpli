@@ -5,6 +5,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DATA_DIR } from "./paths.js";
 import { playbookFor, learn, BROWSER_PROFILE } from "./browser-scout.js";
+import { proposeGoals, ratifiedGoal, ensureGoalsBackfilled } from "./goals.js";
 // Analysis takes real time with real playbooks; the synthetic scout honors a
 // short window so the lifecycle (connected -> analyzing -> choose -> running)
 // is genuine, not instant theater.
@@ -142,10 +143,23 @@ export function scout(sourceId) {
     const src = db.prepare("SELECT * FROM processes WHERE id = ?").get(sourceId);
     if (!src)
         throw new Error(`scout: no such connector: ${sourceId}`);
+    // Experiments are proposed against the connector's north star. Without one
+    // there is nothing to propose *toward*, so scouting waits for ratification.
+    const goal = ratifiedGoal(sourceId);
+    if (!goal)
+        return [];
     const existing = db.prepare("SELECT COUNT(*) c FROM candidates WHERE source_id = ? AND status = 'proposed'").get(sourceId);
     if (existing.c >= 3)
         return listCandidates(sourceId);
-    const lib = LIB[kindFor(src.tool)];
+    // Templates that already measure the goal come first; the rest keep their
+    // lever but are re-pointed at the goal, so every candidate is comparable.
+    const base = LIB[kindFor(src.tool)];
+    const native = base.filter((t) => t[3] === goal.metric);
+    const repointed = base
+        .filter((t) => t[3] !== goal.metric)
+        .map(([field, control, variant, , , rationale]) => [field, control, variant, goal.metric, goal.inverse,
+        `${rationale} Scored against this connector's goal, ${goal.metric}.`]);
+    const lib = [...native, ...repointed];
     const used = db.prepare("SELECT COUNT(*) c FROM candidates WHERE source_id = ?").get(sourceId).c;
     const start = (fnv(sourceId) + used) % lib.length;
     return insertCandidates(sourceId, Array.from({ length: 3 }, (_, n) => {
@@ -158,20 +172,25 @@ export function scout(sourceId) {
 // whose candidates were all dismissed. Called lazily on every read path.
 export function maybeAnalyze() {
     ensureCandidatesTable();
+    ensureGoalsBackfilled();
     const db = openDb();
+    // Analysis finishes by proposing north stars, not experiments. Choosing what
+    // the connector is for comes before choosing what to try on it.
     const due = db.prepare("SELECT id, tool FROM processes WHERE status = 'shadow' AND created_at <= ?").all(Date.now() - ANALYZE_MS);
     for (const r of due) {
+        proposeGoals(r.id);
+        db.prepare("UPDATE processes SET status = 'goal' WHERE id = ?").run(r.id);
+    }
+    // Goal ratified but no live candidates: scout experiments against it.
+    const empty = db.prepare(`SELECT p.id, p.tool FROM processes p WHERE p.status IN ('proposed','running')
+    AND NOT EXISTS (SELECT 1 FROM candidates c WHERE c.source_id = p.id AND c.status = 'proposed')
+    AND NOT EXISTS (SELECT 1 FROM experiments e WHERE e.process_id = p.id AND e.status IN ('running','launching'))
+    AND EXISTS (SELECT 1 FROM goals g WHERE g.source_id = p.id AND g.status = 'ratified')`).all();
+    for (const r of empty) {
         if (playbookFor(r.tool) && existsSync(BROWSER_PROFILE))
             spawnDetachedScout(r.id);
         else
             scout(r.id);
-    }
-    const empty = db.prepare(`SELECT p.id FROM processes p WHERE p.status = 'proposed'
-    AND NOT EXISTS (SELECT 1 FROM candidates c WHERE c.source_id = p.id AND c.status = 'proposed')
-    AND NOT EXISTS (SELECT 1 FROM experiments e WHERE e.process_id = p.id AND e.status = 'running')`).all();
-    for (const r of empty) {
-        db.prepare("UPDATE processes SET status = 'shadow', created_at = ? WHERE id = ?").run(Date.now() - ANALYZE_MS, r.id);
-        scout(r.id);
     }
 }
 export function listCandidates(sourceId) {
@@ -189,8 +208,15 @@ export function acceptCandidate(candidateId) {
         throw new Error(`no such candidate: ${candidateId}`);
     if (c.status !== "proposed")
         throw new Error(`${candidateId} is already ${c.status}`);
-    // The accepted candidate defines what this source measures.
-    db.prepare("UPDATE processes SET metric = ?, inverse = ?, status = 'running' WHERE id = ?").run(c.metric, c.inverse, c.source_id);
+    // A candidate is measured BY the goal; it can never redefine it. This used to
+    // be an UPDATE of processes.metric, which meant whichever experiment you
+    // happened to accept silently became the connector's definition of winning.
+    const goal = ratifiedGoal(c.source_id);
+    if (!goal)
+        throw new Error(`accept: ${c.source_id} has no ratified goal yet — ratify one first (openxpli goals ${c.source_id})`);
+    if (c.metric !== goal.metric || c.inverse !== goal.inverse)
+        throw new Error(`accept: ${candidateId} measures \`${c.metric}\` but ${c.source_id} is accountable to \`${goal.metric}\` — dismiss it, or re-goal the connector to change the north star`);
+    db.prepare("UPDATE processes SET status = 'running' WHERE id = ?").run(c.source_id);
     const src = db.prepare("SELECT * FROM processes WHERE id = ?").get(c.source_id);
     const pb = playbookFor(src.tool);
     const viaBrowser = pb && existsSync(BROWSER_PROFILE);
@@ -229,7 +255,7 @@ export function addSource(id, tool) {
         throw e;
     }
     return {
-        message: `Connector ${id} (${tool}) connected in SHADOW MODE — read-only. No changes will be made to ${tool}.\nOpenXPLI is analyzing the current state; the top 3 experiment suggestions will be ready in about ${Math.round(ANALYZE_MS / 60_000) || 1} minute(s) — watch the console or run: openxpli candidates ${id}`,
+        message: `Connector ${id} (${tool}) connected in SHADOW MODE — read-only. No changes will be made to ${tool}.\nOpenXPLI is analyzing the current state and will propose what ${tool} should be accountable to — its north star metric — in about ${Math.round(ANALYZE_MS / 60_000) || 1} minute(s). You ratify one goal, then experiments are proposed against it.\nWatch the console or run: openxpli goals ${id}`,
         candidates: [],
     };
 }
