@@ -85,7 +85,10 @@ export function writeDecisionRecord(
   finalMultiple: number,
   observedHours: number,
   missingHours: number,
-  won: boolean = finalMultiple > 1.0
+  won: boolean = finalMultiple > 1.0,
+  winner: "variant" | "control" | "holdout" = won ? "variant" : "control",
+  holdoutMultiple: number | null = null,
+  revertedRecord: string | null = null
 ): string {
   ensureLedger();
   const id = nextRecId();
@@ -98,9 +101,10 @@ export function writeDecisionRecord(
   const stale = ranUnder && ranUnder.status === "superseded";
   const body = `# ${id} — ${exp.field}: ${exp.control_value} → ${exp.variant_value}
 
-- **status:** ${won ? "open (awaiting review)" : "reverted (below ×1.00, never adopted)"}
+- **status:** ${winner === "variant" ? "open (awaiting review)" : winner === "holdout" ? "regression (holdout arm won — previous change reverted)" : "reverted (control held; variant never adopted)"}
+- **winner:** ${winner} arm
 - **process:** ${proc.id} (${proc.tool})
-- **experiment:** ${exp.id}
+- **experiment:** ${exp.id}${exp.object ? `\n- **duplicated from:** ${exp.object}` : ""}
 - **agent:** openxpli/loop
 - **goal:** ${ranUnder ? `${ranUnder.id} — \`${metric}\`${stale ? " (superseded since this run started; this record reports the goal it ran under)" : ""}` : "none recorded (pre-goals experiment)"}
 - **run:** ${new Date(exp.started_at).toISOString()} → ${new Date(exp.ends_at).toISOString()}
@@ -109,16 +113,21 @@ export function writeDecisionRecord(
 Changing \`${exp.field}\` from \`${exp.control_value}\` to \`${exp.variant_value}\` improves \`${metric}\`.
 
 ## Evidence — read from ${proc.tool}
-| Metric | Control | Variant | Δ |
+Three arms race against control as the reference; the top one wins.
+
+| Arm | Configuration | ${metric} | Δ |
 |---|---|---|---|
-| ${metric} | 1.00× | ${finalMultiple.toFixed(2)}× | ${((finalMultiple - 1) * 100).toFixed(1)}% |
+${holdoutMultiple != null ? `| holdout | \`${exp.holdout_field}: ${exp.holdout_value}\` | ${holdoutMultiple.toFixed(2)}× | ${((holdoutMultiple - 1) * 100).toFixed(1)}% |\n` : ""}| control | \`${exp.field}: ${exp.control_value}\` | 1.00× | — |
+| variant | \`${exp.field}: ${exp.variant_value}\` | ${finalMultiple.toFixed(2)}× | ${((finalMultiple - 1) * 100).toFixed(1)}% |
 
 ## Statistics
 - Final multiple vs control: **${finalMultiple.toFixed(3)}×**
 - Runtime: ${Math.round(observedHours / 24)}d of 7d default (${observedHours} hourly reads, ${missingHours} recorded gaps)
 
 ## Action
-${won ? "Variant recommended for adoption. Awaiting Approve & merge." : "Variant ended at or below ×1.00 — auto-reverted, not adopted."}
+${winner === "variant" ? "Variant recommended for adoption. Awaiting Approve & merge."
+  : winner === "holdout" ? `The holdout arm — the configuration in force before the last adopted change — beat both control and variant. That change did not hold${revertedRecord ? `, so **${revertedRecord} has been reverted**` : ""}. The live configuration steps back one version.`
+  : "Control held. The variant ended at or below ×1.00 and was not adopted."}
 
 ## Revert steps
 1. In ${proc.tool}: set \`${exp.field}\` back to \`${exp.control_value}\`.
@@ -128,6 +137,17 @@ ${won ? "Variant recommended for adoption. Awaiting Approve & merge." : "Variant
   git(["add", "-A"]);
   git(["commit", "-qm", `${id}: ${exp.id} ${won ? "won" : "failed"} ${finalMultiple.toFixed(3)}x`]);
   return id;
+}
+
+// Append a section to an existing record. Always a new commit — the ledger is
+// hash-chained, so history is added to, never edited.
+export function amendRecord(recordId: string, heading: string, body: string, commitMsg: string): void {
+  ensureLedger();
+  const path = join(LEDGER_DIR, `${recordId}.md`);
+  if (!existsSync(path)) return;
+  writeFileSync(path, readFileSync(path, "utf8") + `\n## ${heading} — ${new Date().toISOString()}\n${body}\n`);
+  git(["add", "-A"]);
+  git(["commit", "-qm", commitMsg]);
 }
 
 // Trailing regression finder: validation outcomes amend the original record

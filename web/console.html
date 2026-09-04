@@ -25,6 +25,11 @@
   .hint { font-family:var(--mono); font-size:11px; color:var(--text-2); }
   main { flex:1; display:flex; flex-direction:column; padding:16px 18px; gap:12px; min-height:0; overflow-y:auto; }
   .headrow { display:flex; align-items:baseline; gap:14px; }
+  .headrow .sub { flex:1 1 auto; min-width:0; }
+  .headtools { display:flex; gap:8px; align-items:center; flex-shrink:0; align-self:center; }
+  .headtools .btn, .headtools input { height:32px; box-sizing:border-box; border-radius:8px; }
+  .headtools input { border:1px solid var(--border-2); padding:0 11px; font:12.5px var(--font); background:var(--surface-2); width:210px; }
+  .headtools input:focus { outline:none; border-color:var(--azure); }
   h1 { font-size:18px; font-weight:600; }
   .sub { font-size:12px; color:var(--text-2); }
   .seg { display:inline-flex; border:1px solid var(--border-2); border-radius:6px; overflow:hidden; margin-left:auto; }
@@ -87,7 +92,7 @@
   .recbody li { margin-left:16px; } .recbody table { border-collapse:collapse; margin:4px 0; }
   .recbody td, .recbody th { border:1px solid var(--border-1); padding:4px 10px; font-family:var(--mono); font-size:11.5px; }
   .recbody code { font-family:var(--mono); background:var(--surface-1); padding:1px 4px; border-radius:3px; font-size:12px; }
-  .btn { border:1px solid var(--border-2); background:var(--surface-2); border-radius:8px; font:500 12.5px var(--font); padding:6px 14px; cursor:pointer; color:var(--text); }
+  .btn { border:1px solid var(--border-2); background:var(--surface-2); border-radius:8px; font:500 12.5px var(--font); padding:6px 14px; cursor:pointer; color:var(--text); white-space:nowrap; }
   .btn:hover { background:var(--surface-1); }
   .btn.primary { background:var(--text); border-color:var(--text); color:#fff; } .btn.primary:hover { background:#444; }
   .btn.danger { color:var(--scarlet); border-color:#E8B7AD; } .btn.danger:hover { background:#FBEAE6; }
@@ -147,7 +152,57 @@
   @keyframes nodePop { 0%{transform:scale(.6)} 70%{transform:scale(1.15)} 100%{transform:scale(1)} }
   .jlbl { font-size:11px; font-weight:600; color:var(--text-2); }
   .autobanner { border:1px solid #BFE4CD; background:#EAF6EF; border-radius:8px; padding:10px 14px; font-size:12.5px; }
+  .outcomepanel { padding:12px 16px 14px 46px; background:var(--surface-1); border-top:1px solid var(--border-1); }
+  .outcomepanel .kv { background:var(--surface-2); }
+  .otbl { width:100%; border-collapse:collapse; margin-top:8px; background:var(--surface-2); border:1px solid var(--border-1); border-radius:8px; overflow:hidden; }
+  .otbl th { font:500 10px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--text-2); text-align:left; padding:8px 12px; border-bottom:1px solid var(--border-1); background:var(--surface-1); }
+  .otbl td { padding:9px 12px; font-size:12.5px; border-bottom:1px solid var(--border-1); }
+  .otbl tr:last-child td { border-bottom:0; }
+  .otbl tr.win td { background:#F2FAF5; }
+  .otbl tr.win td:first-child { box-shadow:inset 3px 0 0 var(--green); }
+  .splitwrap { margin-top:12px; border:1px solid var(--border-1); border-radius:8px; background:var(--surface-2); padding:10px 0 2px; }
+  .splitwrap .plabel { padding:0 14px; }
+  .arm { display:flex; align-items:center; gap:12px; padding:9px 14px; }
+  .arm + .arm { border-top:1px solid var(--border-1); }
+  .armbar { width:112px; height:9px; border-radius:3px; background:var(--surface-1); overflow:hidden; flex-shrink:0; border:1px solid var(--border-1); }
+  .armbar i { display:block; height:100%; background:var(--azure); }
+  .arm.holdout .armbar i { background:#8A6100; }
+  .arm.control .armbar i { background:#8A8A8A; }
+  .arm.promoted .armbar i { background:#0B7A38; }
+  .armraw { width:74px; text-align:right; font:500 13px var(--mono); color:var(--text-2); flex-shrink:0; }
+  .armmult { width:66px; text-align:right; font:600 14px var(--mono); flex-shrink:0; }
+  .armmult.up { color:var(--green); } .armmult.down { color:var(--scarlet); }
+  .armmult.ref, .armmult.none { color:var(--text-2); }
+  .armshare { width:52px; text-align:right; font:600 12px var(--mono); flex-shrink:0; }
+  .armkey { width:66px; font:500 10px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--text-2); flex-shrink:0; }
+  .armcfg { font:12px var(--mono); display:flex; gap:6px; flex-wrap:wrap; }
+  .armcfg span { background:var(--surface-1); border:1px solid var(--border-1); border-radius:4px; padding:1px 7px; }
+  .armcfg span.inh { color:var(--text-2); background:transparent; border-style:dashed; }
+  .tl { position:relative; height:18px; margin:3px 0; }
+  .tlbar { position:absolute; height:8px; top:5px; border-radius:4px; }
+  .tlbar.run { background:var(--azure); }
+  .tlbar.holdout { background:#B4B4B4; }
+  .tllab { font:400 10.5px var(--mono); color:var(--text-2); }
+  .overlapwarn { border:1px solid #E8CF9A; background:#FFFBF2; border-radius:8px; padding:9px 13px; font-size:12px; line-height:1.5; margin-top:9px; }
+  .halves { display:flex; gap:16px; align-items:flex-start; }
+  .half { flex:1 1 0; min-width:0; }
+  .gcard { border:1px solid var(--border-1); border-radius:10px; background:var(--surface-2); padding:13px 15px; margin-top:8px; }
+  .gcard.unset { border-color:#E8CF9A; background:#FFFBF2; }
+  .gcard.warn { border-color:#BFE4CD; background:#F4FBF7; }
+  .gcardhead { display:flex; align-items:baseline; gap:8px; }
+  .gcardval { font:600 16px var(--mono); letter-spacing:-0.01em; }
+  .gladder { display:flex; align-items:center; gap:4px; margin-top:10px; }
+  .grung { width:26px; height:5px; border-radius:3px; background:var(--border-1); }
+  .grung.on { background:var(--azure); }
+  .gedit { padding:1px 8px; font-size:11px; opacity:0; transition:opacity .15s; }
+  .gedit.perm { opacity:1; }
+  .gedit[disabled] { opacity:1; cursor:not-allowed; background:var(--surface-1); color:var(--text-2); border-color:var(--border-1); }
+  .gcard:hover .gedit, .goalcard:hover .gedit { opacity:1; }
+  .grules { margin:9px 0 0; padding-left:16px; font-size:11.5px; line-height:1.55; color:var(--text-2); }
+  .grules li { margin-bottom:3px; }
+  .altwrap .exprow { flex-wrap:wrap; }
   .goalcard { border:1px solid var(--border-1); border-radius:8px; background:var(--surface-2); margin-top:8px; padding:13px 16px; }
+  .altwrap { margin-top:10px; }
   .goalcard.unset { border-color:#E8CF9A; background:#FFFBF2; }
   .goalmetric { font-size:15.5px; font-weight:600; letter-spacing:-0.01em; }
   .grail { display:inline-flex; align-items:center; gap:5px; font:500 11px var(--mono); border:1px solid var(--border-1); border-radius:5px; padding:2px 8px; color:var(--text-2); background:var(--surface-1); }
@@ -156,6 +211,16 @@
   .collhead { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; padding:2px 0; }
   .collhead:hover .plabel { color:var(--text); }
   .explist { border:1px solid var(--border-1); border-radius:8px; background:var(--surface-2); margin-top:8px; }
+  .expgroup { margin-top:12px; }
+  .expgrouphead { display:flex; align-items:center; gap:8px; padding:0 2px; }
+  .rawcell { width:112px; flex-shrink:0; text-align:right; }
+  .rawlab { font:500 9.5px var(--mono); letter-spacing:.05em; text-transform:uppercase; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rawval { font:600 15px var(--mono); margin-top:1px; color:var(--text); }
+  .winnercell { width:132px; flex-shrink:0; text-align:right; }
+  .winnerarm { font:500 9.5px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--text-2); }
+  .winnerarm.good { color:var(--green); } .winnerarm.bad { color:var(--scarlet); } .winnerarm.warn { color:#8A6100; }
+  .winnermult { font:600 15px var(--mono); margin-top:1px; }
+  .winnermult.good { color:var(--green); } .winnermult.bad { color:var(--scarlet); } .winnermult.warn { color:#8A6100; } 
   .exprow { display:flex; align-items:center; gap:12px; padding:10px 14px; }
   .exprow + .exprow { border-top:1px solid var(--border-1); }
   .exprow .badge { margin-left:0; flex-shrink:0; }
@@ -179,7 +244,9 @@
   #confetti { position:fixed; inset:0; pointer-events:none; z-index:55; }
   @media (prefers-reduced-motion: reduce){ .jnode, .jfill, .cand, .analyzing-card, .jr-sweep { animation:none !important; transition:none !important } }
   .b-analyzing { background:#E8F5FF; color:var(--azure-deep); }
-  .b-choose { background:#FFF4DE; color:#8A6100; }
+  .b-running { background:#EFECFF; color:#5B3FD6; }
+  .b-rolledback { background:#FFF4DE; color:#8A6100; }
+  .b-choose { background:#E4F2FE; color:var(--azure-deep); }
 </style>
 </head>
 <body>
@@ -190,11 +257,11 @@
     <div class="spacer"></div>
     <span class="hint">localhost · read-only console</span>
   </div>
-  <main id="view-experiments">
+  <main id="view-experiments" style="display:none">
     <div class="headrow">
       <h1>Experiments</h1>
-      <span class="sub">Every experiment runs one week — 168 hourly reads against control. End above ×1.00 and the variant is adopted; below, it dies. Winners keep a 5% holdout for 14 days.</span>
-      <span style="margin-left:auto;display:flex;gap:8px">
+      <span class="sub">Every experiment runs one week — 168 hourly reads. Three arms race against control: the holdout (the last adopted change), the control, and the variant. The top one wins.</span>
+      <span class="headtools">
         <button class="btn" onclick="location='/api/export.csv?days='+days">Export</button>
         <button class="btn primary" onclick="reviewOpen()">Review open decision</button>
       </span>
@@ -213,13 +280,12 @@
     </div>
   </main>
 
-  <main id="view-processes" style="display:none">
+  <main id="view-processes">
     <div class="headrow">
-      <h1>Connectors</h1><span class="sub">Every connector initializes safely in shadow mode with read-only permissions. OpenXPLI analyzes it and suggests experiments; you accept each one to start it.</span>
-      <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
-        <input id="proc-search" placeholder="Filter connectors…" oninput="renderProcesses(window.__procs||[])"
-          style="width:220px;border:1px solid var(--border-2);border-radius:8px;padding:6px 10px;font:12.5px var(--font);background:var(--surface-2)">
-        <button class="btn primary" onclick="openConnectors()">Add Connector</button>
+      <h1>Connectors</h1><span class="sub">Every connector initializes safely in shadow mode with read-only permissions. OpenXPLI analyzes it and suggests experiments; you start the ones worth running.</span>
+      <span class="headtools">
+        <input id="proc-search" placeholder="Filter connectors…" oninput="renderProcesses(window.__procs||[])">
+        <button class="btn primary" onclick="openConnectors()">Add connector</button>
       </span>
     </div>
     <div class="panel" style="padding:0;flex:1;overflow-y:auto">
@@ -438,7 +504,7 @@ function reviewOpen(){
 }
 
 // ── tabs / views ──
-const VIEWS = ["experiments","ledger","processes"];
+const VIEWS = ["processes","experiments","ledger"];
 const LABELS = { experiments:"Experimentation", processes:"Connectors", ledger:"Events" };
 const CATALOG = [
   ["ChatGPT Ads","ads-openai","Clone campaigns, tune bids and creative in ads.openai.com","https://ads.openai.com"],
@@ -448,9 +514,8 @@ const CATALOG = [
   ["Intercom","intercom","Onboarding messages, bots and tours","https://app.intercom.com"],
   ["Zendesk","zendesk","Triage, routing rules and macros","https://www.zendesk.com/login/"],
   ["Meta Ads","meta-ads","Ad sets, creative and audience splits","https://business.facebook.com"],
-  ["GitHub","github","READMEs, docs and release notes","https://github.com/login"],
 ];
-let view = "experiments", selProc = null, selRec = null;
+let view = "processes", selProc = null, selRec = null;
 function renderTabs(){
   document.getElementById("tabs").innerHTML = VIEWS.map(v =>
     `<button class="${v===view?"on":""}" onclick="setView('${v}')">${LABELS[v]}</button>`).join("");
@@ -473,17 +538,16 @@ function renderProcesses(all){
   if (selProc != null && !procs.some(p => p.id === selProc)) selProc = null;
   const fmtWhen = ts => ts ? new Date(ts).toISOString().slice(0,10) : "—";
   document.getElementById("proc-table").innerHTML =
-    `<tr><th>Connector</th><th>Tool</th><th>Goal</th><th>Status</th><th>Autonomy</th><th>Δ vs control</th><th>Updated</th></tr>` +
+    `<tr><th>Connector</th><th>Tool</th><th>Goal</th><th>Status</th><th>Autonomy</th><th>Updated</th></tr>` +
     procs.map(p => {
-      const m = p.latest?.final_multiple ?? p.latest?.last_multiple;
-      const cls = m == null ? "" : m > 1 ? "good" : "bad";
       const sel = p.id === selProc;
       // A live run outranks the connector's stored status, which lags behind it.
       const oc = p.outcomes || {};
+      const exps = (p.experiments||[]).filter(e => e.status === "running" || e.status === "launching").length;
       const st = p.status === "shadow" ? ["learning","analyzing pulsing"]
         : p.status === "goal" ? ["set goal","choose"]
-        : p.status === "reverted" ? ["reverted","regressed"]
-        : (p.latest?.status === "running" || p.latest?.status === "launching") ? ["experiment running","open"]
+        : p.status === "reverted" ? ["reverted","rolledback"]
+        : (p.latest?.status === "running" || p.latest?.status === "launching") ? [`${exps} experiment${exps===1?"":"s"} running`,"running"]
         : oc.open ? ["awaiting review","open"]
         : oc.validating ? ["in holdout","analyzing"]
         : p.status === "proposed" ? ["choose experiment","choose"]
@@ -492,19 +556,20 @@ function renderProcesses(all){
         <td class="mono"><span class="chev">▸</span>${p.id}</td><td>${p.tool}</td>
         <td>${p.goal ? `${p.goal.metric}${p.goal.inverse ? ' <span class="sub">↓</span>' : ""}` : `<span class="sub">not set</span>`}</td>
         <td><span class="badge b-${st[1]}">${st[0]}</span></td>
-        <td>${p.autonomy}</td><td class="mono ${cls}">${m==null?"—":fmtX(m)}</td>
+        <td>${p.autonomy}</td>
         <td class="mono">${fmtWhen(p.latest?.updated)}</td></tr>`;
-      return row + (sel ? `<tr class="detailrow"><td colspan="7"><div class="procpanel">
+      return row + (sel ? `<tr class="detailrow"><td colspan="6"><div class="procpanel">
         <div class="phead"><span class="chev" style="transform:rotate(90deg);color:var(--azure-deep)">▸</span>
           <span class="pid">${p.id}</span><span class="cchip">${p.tool}</span><span class="cchip">${p.autonomy}</span>
           <span style="flex:1"></span>
+          ${p.map ? `<button class="btn ghost" style="padding:3px 10px" onclick="event.stopPropagation();openKnowledge('${p.id}')">ⓘ Connector knowledge</button>` : ""}
           <button class="btn ghost" style="padding:3px 10px" onclick="event.stopPropagation();selProc=null;renderProcesses(window.__procs||[])">✕ Close</button>
         </div>
         <div class="pbody">${procDetail(p)}</div>
       </div></td></tr>` : "");
     }).join("");
   if (!procs.length) document.getElementById("proc-table").innerHTML +=
-    `<tr><td colspan="7" style="padding:18px" class="sub">No connectors yet — Add Connector to begin.</td></tr>`;
+    `<tr><td colspan="6" style="padding:18px" class="sub">No connectors yet — Add Connector to begin.</td></tr>`;
 }
 const OPENXPLI_SVG = `<svg class="jr" viewBox="0 0 60 60">
   <defs><linearGradient id="jrg" x1="30" y1="5" x2="54.6" y2="34.3" gradientUnits="userSpaceOnUse">
@@ -583,79 +648,27 @@ function procDetail(p){
       </div>
     </div>` : "";
   const cands = expListSect(p);
-
-  const a = p.autonomy_stats || {};
-  let autonomySect = "";
-  if (p.autonomy === "human-gated" && a.eligibleStart){
-    autonomySect = `<div class="sect"><button class="btn primary" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'auto-start'})">🔓 Unlock self-starting</button></div>`;
-  } else if (p.autonomy === "auto-start"){
-    autonomySect = `<div class="sect autobanner">⚡ <b>Self-starting.</b> ${p.tool} proposes and starts its own experiments; you still approve every merge.
-      ${a.eligibleMerge ? `<button class="btn primary" style="margin-left:10px" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'auto-merge'})">🔓 Unlock full autonomy</button>` : ""}
-      <button class="btn ghost" style="margin-left:8px" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'human-gated'})">dial down</button></div>`;
-  } else if (p.autonomy === "auto-merge"){
-    autonomySect = `<div class="sect autobanner">🏆 <b>Fully autonomous.</b> ${p.tool} starts experiments, merges validated winners, and keeps iterating — every action still ledgered, every merge still revertible.
-      <button class="btn ghost" style="margin-left:10px" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'auto-start'})">dial down</button></div>`;
-  }
-  const mapSect = p.map ? `<div class="sect">
-    <div class="collhead" onclick="event.stopPropagation();window.__mapOpen=window.__mapOpen==='${p.id}'?null:'${p.id}';renderProcesses(window.__procs||[])">
-      <span style="display:inline-block;transition:transform .2s;transform:rotate(${window.__mapOpen===p.id?90:0}deg)">▸</span>
-      <span class="plabel">What OpenXPLI knows</span>
-    </div>
-    ${window.__mapOpen===p.id ? `<div style="border:1px solid var(--border-1);border-radius:8px;background:var(--surface-2);margin-top:8px;padding:12px 14px;font-size:12.5px;line-height:1.55;white-space:pre-wrap">${p.map.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</div>` : ""}
-  </div>` : "";
   return `
     ${stepper(p)}
-    ${autonomySect}
     ${analyzeNote}
-    ${goalSect(p)}
-    ${mapSect}
-    ${cands}
-    ${resultsSect(p)}`;
+    <div class="halves">
+      <div class="half">${goalSect(p)}</div>
+      <div class="half">${guardrailsSect(p)}</div>
+    </div>
+    ${cands}`;
 }
-window.__resColl = window.__resColl || {};
-function toggleRes(id){ window.__resColl[id] = !window.__resColl[id]; renderProcesses(window.__procs || []); }
-const REVIEW_BADGE = { open:["awaiting review","open"], merged:["merged","merged"], rejected:["rejected","rejected"],
-  reopened:["reopened","open"], "auto-reverted":["auto-reverted","reverted"] };
+// Only states that say something the winner column does not. "no-change" is
+// already the whole story on the right, so it gets no pill.
+const REVIEW_BADGE = { open:["awaiting review","open"], merged:["live","merged"], rejected:["rejected","rejected"],
+  reopened:["reopened","open"], reverted:["rolled back later","rolledback"], "no-change":null };
 const HOLD_BADGE = { validating:["holdout running","open"], validated:["validated","validated"],
   regressed:["regressed","regressed"], cancelled:["holdout cancelled","rejected"], none:null };
-function resultsSect(p){
-  const done = (p.experiments||[]).filter(e => e.outcome);
-  if (!done.length) return "";
-  const oc = p.outcomes || {};
-  const open = !window.__resColl[p.id];
-  const d10 = ts => new Date(ts).toISOString().slice(0,10);
-  const rows = done.map(e => {
-    const o = e.outcome;
-    const rb = REVIEW_BADGE[o.review_state] || [o.review_state,"open"];
-    const hb = HOLD_BADGE[o.holdout_state];
-    return `<div class="exprow">
-      <span class="badge b-${o.verdict==="won"?"validated":"regressed"}">${o.verdict}</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
-        <div class="sub" style="margin-top:3px;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-          <span class="badge b-${rb[1]}" style="margin-left:0">${rb[0]}</span>
-          ${hb ? `<span class="badge b-${hb[1]}" style="margin-left:0">${hb[0]}${o.holdout_multiple!=null?" "+fmtX(o.holdout_multiple):""}</span>` : ""}
-          <span class="mono" style="font-size:10.5px">decided ${d10(e.ends_at)}</span>
-          ${o.goal_id ? `<span class="mono" style="font-size:10.5px">· goal ${o.goal_id}</span>` : `<span class="mono" style="font-size:10.5px;color:var(--scarlet)">· no goal recorded</span>`}
-        </div>
-      </div>
-      <span class="mono" style="font-weight:600;color:${o.verdict==="won"?"var(--green)":"var(--scarlet)"}">${o.final_multiple==null?"—":fmtX(o.final_multiple)}</span>
-      ${o.record_id ? `<button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();openRecord('${o.record_id}')">record →</button>` : ""}
-    </div>`;
-  }).join("");
-  return `<div class="sect">
-    <div class="collhead" onclick="event.stopPropagation();toggleRes('${p.id}')">
-      <span style="display:inline-block;transition:transform .2s;transform:rotate(${open?90:0}deg)">▸</span>
-      <span class="plabel">Results &amp; outcomes</span>
-      <span class="mono" style="font-size:10.5px;color:var(--text-2)">${done.length}</span>
-      ${oc.open ? `<span class="badge b-open" style="margin-left:4px">${oc.open} awaiting review</span>` : ""}
-      ${oc.validating ? `<span class="badge b-analyzing" style="margin-left:4px">${oc.validating} in holdout</span>` : ""}
-    </div>
-    ${open ? `<div class="explist">${rows}</div>` : ""}
-  </div>`;
-}
 window.__goalColl = window.__goalColl || {};
 function toggleGoal(id){ window.__goalColl[id] = !window.__goalColl[id]; renderProcesses(window.__procs || []); }
+function switchGoal(pid, gid, to, from){
+  if (!confirm(`Switch ${pid} from "${from}" to "${to}"?\n\n• New experiments will be proposed against ${to}\n• Earned autonomy resets to human-gated — wins measured against ${from} do not transfer\n• Any experiment already running finishes and is reported against ${from}`)) return;
+  post('/api/ratify', { goal: gid });
+}
 function railChip(g){
   return `<span class="grail"><b>${g.metric}</b> ${g.direction === "must-not-rise" ? "must not rise" : "must not drop"}</span>`;
 }
@@ -666,6 +679,7 @@ function goalSect(p){
   let body;
   if (g){
     const rails = (g.guardrails || []);
+    const alts = opts.filter(o => o.id !== g.id);
     body = `<div class="goalcard">
       <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
         <span class="goalmetric">${g.metric}</span>
@@ -677,9 +691,28 @@ function goalSect(p){
       <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:11px">
         <span class="plabel">Guardrails</span>
         ${rails.length ? rails.map(railChip).join("") : `<span class="sub">none declared</span>`}
+        <button class="btn ghost gedit" onclick="event.stopPropagation();editRails('${p.id}')">Edit</button>
       </div>
-      <div class="goalnote">Every experiment on this connector measures <b>${g.metric}</b>. Accepting an experiment cannot change that — only ratifying a new goal can, and that resets earned autonomy.${rails.length ? " Guardrails are checked at review; they are not read automatically yet." : ""}</div>
-    </div>`;
+      <div class="goalnote">Every experiment on this connector measures <b>${g.metric}</b>. Starting an experiment cannot change that — only ratifying a new goal can, and that resets earned autonomy.${rails.length ? " Guardrails are checked at review; they are not read automatically yet." : ""}</div>
+    </div>
+    ${alts.length ? `<div class="altwrap">
+      <div class="plabel" style="margin-bottom:7px">Alternatives — switch the north star</div>
+      <div class="explist">
+        ${alts.map(o => `<div class="exprow">
+          <span class="badge ${o.status === "superseded" ? "b-rejected" : "b-choose"}" style="margin-left:0">${o.status === "superseded" ? "previous" : "runner-up"}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12.5px;font-weight:600">${o.metric} <span class="cchip" style="font-weight:400">${o.inverse ? "lower is better" : "higher is better"}</span></div>
+            <div class="sub" style="margin-top:3px;line-height:1.5">${o.rationale}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${(o.guardrails||[]).map(railChip).join("") || `<span class="sub" style="font-size:11px">no guardrails</span>`}</div>
+          </div>
+          <button class="btn" style="padding:4px 12px" onclick="event.stopPropagation();switchGoal('${p.id}','${o.id}','${String(o.metric).replace(/'/g,"\\'")}','${String(g.metric).replace(/'/g,"\\'")}')">Switch</button>
+        </div>`).join("")}
+      </div>
+      <div class="goalnote" style="border-top:0;padding-top:6px">Switching restarts everything below the goal: new experiments are proposed against the new metric, earned autonomy resets to human-gated, and any run already in flight finishes and is reported against the goal it started under.</div>
+    </div>` : `<div class="altwrap">
+      <div class="sub" style="font-size:12px">No alternatives left — every other north star for this connector was dismissed.
+        <button class="btn" style="margin-left:8px;padding:3px 10px" onclick="event.stopPropagation();post('/api/regoal',{id:'${p.id}'})">Propose alternatives</button></div>
+    </div>`}`;
   } else if (opts.length){
     body = `<div class="goalcard unset">
       <div style="font-size:12.5px;line-height:1.55">Choose what <b>${p.tool}</b> is accountable to. Every experiment below will be measured against it, and no experiment can change it once set.</div>
@@ -705,7 +738,6 @@ function goalSect(p){
       <span class="plabel">Goal</span>
       <span class="mono" style="font-size:10.5px;color:var(--text-2)">${g ? "north star" : "not set"}</span>
       <span style="flex:1"></span>
-      ${g ? `<button class="btn ghost" style="padding:3px 10px;font-size:11.5px" onclick="event.stopPropagation();if(confirm('Change the north star for ${p.id}?\\n\\nExperiments already running finish against the current goal. Earned autonomy is reset, because those wins were measured against a different definition of winning.'))post('/api/regoal',{id:'${p.id}'})">Change goal</button>` : ""}
     </div>
     ${open ? body : ""}
   </div>`;
@@ -757,80 +789,6 @@ function celebrate(p, from, to){
   const msg = STAGE_TOASTS[to];
   if (msg) toast(msg(p));
 }
-window.__coll = window.__coll || {};
-function toggleExps(id){ window.__coll[id] = !window.__coll[id]; renderProcesses(window.__procs || []); }
-function expListSect(p){
-  const rows = [];
-  for (const c of (p.candidates||[]).slice().sort((a,b)=>b.expected_multiple-a.expected_multiple)){
-    rows.push(`<div class="exprow">
-      <span class="badge b-choose">proposed</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:500">${c.field}: ${c.control_value} → <b>${c.variant_value}</b></div>
-        <div class="sub" style="margin-top:2px">${c.rationale}</div>
-        <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${p.goal && c.metric === p.goal.metric ? "✓ " : "⚠ off-goal: "}${c.metric}${c.inverse?" (1/x)":""} · expected ~×${c.expected_multiple.toFixed(2)}</div>
-      </div>
-      <button class="btn primary" style="padding:4px 12px" onclick="event.stopPropagation();post('/api/accept',{candidate:'${c.id}'})">Accept</button>
-      <button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();post('/api/dismiss',{candidate:'${c.id}'})">Dismiss</button>
-    </div>`);
-  }
-  const d10 = ts => new Date(ts).toISOString().slice(0,10);
-  const exps = (p.experiments||[]);
-  for (const e of exps.filter(e => e.status === "launching")){
-    const failed = e.launch_note && e.launch_note.startsWith("launch failed");
-    rows.push(`<div class="exprow">
-      <span class="badge ${failed ? "b-regressed" : "b-analyzing pulsing"}">${failed ? "launch failed" : "launching"}</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
-        <div class="sub" style="margin-top:2px">${failed ? e.launch_note : "OpenXPLI is creating the objects in " + p.tool + " through the browser — receipts saved every step"}</div>
-      </div>
-    </div>`);
-  }
-  for (const e of exps.filter(e => e.status === "running")){
-    const dayN = Math.min(Math.ceil((Date.now()-e.started_at)/86400000), Math.round((e.ends_at-e.started_at)/86400000));
-    const days = Math.round((e.ends_at-e.started_at)/86400000);
-    rows.push(`<div class="exprow">
-      <span class="badge b-open">running</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
-        <div class="sub" style="margin-top:2px">day ${dayN} of ${days} · vs control</div>
-      </div>
-      <span class="mono" style="font-weight:600;${e.last_multiple==null?"color:var(--text-2)":e.last_multiple>1?"color:var(--green)":"color:var(--scarlet)"}">${e.last_multiple==null?"—":fmtX(e.last_multiple)+"…"}</span>
-    </div>`);
-  }
-  for (const e of exps.filter(e => (e.status === "won" || e.status === "failed") && !e.outcome)){
-    const ho = e.holdout_status === "validated" ? ` <span style="color:var(--green)">✓ validated</span>`
-      : e.holdout_status === "regressed" ? ` <span style="color:var(--scarlet)">✗ regressed</span>`
-      : e.holdout_status === "validating" ? ` <span class="sub">holdout…</span>` : "";
-    rows.push(`<div class="exprow">
-      <span class="badge b-${e.status==="won"?"validated":"regressed"}">${e.status}</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
-        <div class="sub" style="margin-top:2px">${d10(e.started_at)} → ${d10(e.ends_at)}${ho}</div>
-      </div>
-      <span class="mono" style="font-weight:600;color:${e.status==="won"?"var(--green)":"var(--scarlet)"}">${e.final_multiple==null?"—":fmtX(e.final_multiple)}</span>
-      ${e.record_id ? `<button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();openRecord('${e.record_id}')">event →</button>` : ""}
-    </div>`);
-  }
-  if (!rows.length && !p.goal) return "";
-  const open = !window.__coll[p.id];
-  if (!rows.length) return `<div class="sect">
-    <div class="collhead"><span class="plabel">Experiments</span></div>
-    <div class="explist" style="padding:12px 14px"><span class="sub">Scouting experiments against ${p.goal.metric}…</span></div>
-  </div>`;
-  return `<div class="sect">
-    <div class="collhead" onclick="event.stopPropagation();toggleExps('${p.id}')">
-      <span style="display:inline-block;transition:transform .2s;transform:rotate(${open?90:0}deg)">▸</span>
-      <span class="plabel">Experiments</span><span class="mono" style="font-size:10.5px;color:var(--text-2)">${rows.length}</span>
-      ${p.goal ? `<span class="mono" style="font-size:10.5px;color:var(--text-2)">· measured against ${p.goal.metric}</span>` : ""}
-      <span style="flex:1"></span>
-      <button class="btn ghost" style="padding:3px 10px;font-size:11.5px" onclick="event.stopPropagation();post('/api/rescout',{id:'${p.id}'})">↻ New suggestions</button>
-    </div>
-    ${open ? `<div class="explist">${rows.join("")}</div>` : ""}
-  </div>`;
-}
-function selectProc(id){ selProc = selProc === id ? null : id; renderProcesses(window.__procs || []); }
-function openRecord(id){ selRec = id; setView("ledger"); }
-
 // ── enroll / start forms ──
 function formModal(title, fieldsHtml, submitLabel, onSubmit){
   let el = document.getElementById("modal-root");
@@ -848,6 +806,9 @@ function formModal(title, fieldsHtml, submitLabel, onSubmit){
 const F = (id, label, ph, extra="") => `<label style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);font-weight:500">${label}
   <input id="${id}" placeholder="${ph}" ${extra} style="display:block;width:100%;margin-top:4px;border:1px solid var(--border-2);border-radius:6px;padding:7px 10px;font:12.5px var(--mono);background:var(--surface-2)"></label>`;
 function val(id){ return document.getElementById(id).value.trim(); }
+const TA = (id, label, ph, value="", rows=6) => `<label style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);font-weight:500">${label}
+  <textarea id="${id}" rows="${rows}" placeholder="${ph}" style="display:block;width:100%;margin-top:4px;border:1px solid var(--border-2);border-radius:6px;padding:8px 10px;font:12.5px/1.55 var(--font);background:var(--surface-2);resize:vertical">${value}</textarea></label>`;
+const esc = t => String(t == null ? "" : t).replace(/&/g,"&amp;").replace(/</g,"&lt;");
 
 async function openConnectors(){
   const procs = await j("/api/processes");
@@ -885,14 +846,14 @@ async function openConnectors(){
       ${available}
     </div>
     <div style="display:flex;align-items:center;gap:10px;padding:14px 24px;border-top:1px solid var(--border-1)">
-      <span class="sub" style="flex:1;font-size:12px">ⓘ Connectors initialize in shadow mode with read-only permissions — nothing is changed until you accept an experiment</span>
+      <span class="sub" style="flex:1;font-size:12px">ⓘ Connectors initialize in shadow mode with read-only permissions — nothing is changed until you start an experiment</span>
       <button class="btn" onclick="window.open('https://github.com/ozanedge/openxpli','_blank')">⧉ Browse directory</button>
     </div>
   </div></div>`;
 }
 function connectTool(name, slug, auth){
   formModal(`Connect ${name}`, [
-    `<div class="sub" style="line-height:1.5"><b>1.</b> Connect opens ${name}'s sign-in in a new tab — make sure you're signed in <i>in this browser</i>. OpenXPLI rides your existing session and never sees your password.<br><b>2.</b> The connector starts in <b>shadow mode with read-only permissions</b>: OpenXPLI analyzes the current state and suggests the top 3 experiments; you accept each one to start it.</div>`,
+    `<div class="sub" style="line-height:1.5"><b>1.</b> Connect opens ${name}'s sign-in in a new tab — make sure you're signed in <i>in this browser</i>. OpenXPLI rides your existing session and never sees your password.<br><b>2.</b> The connector starts in <b>shadow mode with read-only permissions</b>: OpenXPLI analyzes the current state and suggests the top 3 experiments; you start the ones worth running.</div>`,
     F("f-id","Account name", `${slug}/main-account`, `value="${slug}/main-account"`),
   ].join(""), "Connect", async () => {
     const d = await post("/api/add", { id: val("f-id"), tool: name });
@@ -923,38 +884,155 @@ function openEnroll(){
     if (d.ok) closeExp();
   });
 }
-function openStart(procId){
-  formModal(`Start experiment on ${procId}`, [
-    F("f-field","Field to change","subject line"),
-    F("f-control","Control value","Your cart misses you"),
-    F("f-variant","Variant value","Still thinking it over?"),
-    F("f-days","Run length (days)","7", 'value="7"'),
-  ].join(""), "Start", async () => {
-    const d = await post("/api/start", { process: procId, field: val("f-field"), control: val("f-control"), variant: val("f-variant"), days: Number(val("f-days") || 7) });
-    if (d.ok) closeExp();
-  });
+function outcomePanel(e){
+  const o = e.outcome, d10 = ts => ts ? new Date(ts).toISOString().slice(0,10) : "—";
+  const rb = (o.review_state in REVIEW_BADGE ? REVIEW_BADGE[o.review_state] : [o.review_state,"open"]);
+  const isAA = e.holdout_field === e.field && e.holdout_value === e.control_value;
+  const rows = [];
+  if (o.holdout_multiple != null)
+    rows.push(["holdout", isAA ? `${e.field}: ${e.control_value}` : `${e.holdout_field}: ${e.holdout_value}`,
+               o.holdout_multiple, isAA ? "A/A" : "previous"]);
+  rows.push(["control", `${e.field}: ${e.control_value}`, 1, "reference"]);
+  rows.push(["variant", `${e.field}: ${e.variant_value}`, o.final_multiple, "the change"]);
+  return `<div class="outcomepanel">
+    <div class="plabel">Outcome</div>
+    <table class="otbl">
+      <tr><th>arm</th><th>configuration</th><th style="text-align:right">${o.goal_metric || "result"}</th><th style="text-align:right">vs control</th><th></th></tr>
+      ${rows.map(([arm, cfg, mult, kind]) => {
+        const rawV = e.baseline != null && mult != null ? e.baseline * mult : null;
+        const won = (o.winner || (o.verdict === "won" ? "variant" : "control")) === arm;
+        return `<tr class="${won?"win":""}">
+          <td class="mono"><b>${arm}</b></td>
+          <td class="mono" style="color:var(--text-2)">${cfg}</td>
+          <td class="mono" style="text-align:right;font-weight:600">${fmtRaw(rawV, e.baseline_unit)}</td>
+          <td class="mono" style="text-align:right;font-weight:600;${mult==null?"":mult>1?"color:var(--green)":mult<1?"color:var(--scarlet)":""}">${mult==null?"—":fmtX(mult)}</td>
+          <td style="font-size:11px;color:var(--text-2)">${won ? `<b style="color:var(--text)">won</b>` : kind}</td>
+        </tr>`;
+      }).join("")}
+    </table>
+    <div class="sub" style="margin-top:10px;font-size:11.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      ${rb ? `<span class="badge b-${rb[1]}" style="margin-left:0">${rb[0]}</span>` : ""}
+      <span>decided ${d10(o.decided_at)}</span>
+      ${o.goal_id ? `<span>· goal ${o.goal_id}</span>` : `<span style="color:var(--scarlet)">· no goal recorded</span>`}
+      ${o.record_id ? `<span>· <a onclick="event.stopPropagation();openRecord('${o.record_id}')" style="cursor:pointer">${o.record_id} →</a></span>` : ""}
+      ${o.winner === "holdout" && !isAA ? `<span style="color:#8A6100">· the previously adopted change was reverted — the regression finder working as designed</span>` : ""}
+      ${o.winner === "holdout" && isAA ? `<span style="color:var(--scarlet)">· the A/A arm beat an identical control — measurement is suspect</span>` : ""}
+    </div>
+    ${splitRows(e.split)}
+  </div>`;
+}
+function guardCard(title, value, sub, body, tone, edit, rawBtn){
+  return `<div class="gcard ${tone||""}">
+    <div class="gcardhead"><span class="plabel">${title}</span>
+      ${rawBtn || (edit ? `<button class="btn ghost gedit" onclick="event.stopPropagation();${edit}">Edit</button>` : "")}
+      <span style="flex:1"></span><span class="gcardval">${value}</span></div>
+    ${sub ? `<div class="sub" style="margin-top:5px;font-size:11.5px;line-height:1.5">${sub}</div>` : ""}
+    ${body || ""}
+  </div>`;
+}
+const AUTONOMY_COPY = {
+  shadow: ["Observes and proposes. Nothing in the account is changed.", ""],
+  "human-gated": ["Runs experiments you start, and waits for you to merge every winner.", ""],
+  "auto-start": ["Proposes and starts its own experiments. You still merge every winner.", "warnTone"],
+  "auto-merge": ["Runs the whole loop: starts, merges winners, iterates. Every action ledgered and revertible.", "warnTone"],
+};
+function guardrailsSect(p){
+  const a = p.autonomy_stats || {}, pol = p.policy || {};
+  const LADDER = ["shadow","human-gated","auto-start","auto-merge"];
+  const at = LADDER.indexOf(p.autonomy);
+  const copy = AUTONOMY_COPY[p.autonomy] || ["",""];
+  const rungs = `<div class="gladder">${LADDER.map((l,i) => `<span class="grung ${i<=at?"on":""}" title="${l}"></span>`).join("")}
+    <span class="mono" style="font-size:10px;color:var(--text-2);margin-left:6px">${at+1}/4</span></div>`;
+  // Autonomy gets the same control slot as the other cards, but it is EARNED —
+  // so the button is present and disabled until the wins exist, rather than absent.
+  const NEXT = { shadow: "human-gated", "human-gated": "auto-start", "auto-start": "auto-merge", "auto-merge": null };
+  const next = NEXT[p.autonomy];
+  const canPromote = next === "human-gated" ? true
+    : next === "auto-start" ? !!a.eligibleStart
+    : next === "auto-merge" ? !!a.eligibleMerge : false;
+  const needed = next === "auto-start" ? `${a.wins||0} of ${a.autoStartAt} wins under this goal`
+    : next === "auto-merge" ? `${a.wins||0} of ${a.autoMergeAt} wins and a validated holdout`
+    : "";
+  const headBtn = !next
+    ? `<button class="btn ghost gedit perm" disabled title="Top of the ladder">Fully unlocked</button>`
+    : canPromote
+    ? `<button class="btn ghost gedit perm" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'${next}'})">🔓 Unlock ${next}</button>`
+    : `<button class="btn ghost gedit perm" disabled title="Needs ${needed}${a.regressed ? " and no regressions" : ""}">Not yet earned</button>`;
+  const act = `${next && !canPromote ? `<div class="sub" style="margin-top:8px;font-size:11.5px">${next.replace("-"," ")} unlocks at ${needed}.${a.regressed ? " A regression resets the count." : ""}</div>` : ""}
+    ${(p.autonomy === "auto-start" || p.autonomy === "auto-merge") ? `<div style="margin-top:10px"><button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'${p.autonomy === "auto-merge" ? "auto-start" : "human-gated"}'})">Dial down</button></div>` : ""}`;
+  const b = pol.budget;
+  const budget = b
+    ? guardCard("Budget", `${b.currency === "USD" ? "$" : ""}${Number(b.daily_cap).toFixed(2)}<span style="font-size:11px;color:var(--text-2)">/day</span>`,
+        `${b.source || ""}${b.note ? " · " + b.note : ""}`, "", "", `editBudget('${p.id}')`)
+    : guardCard("Budget", "not set", "No spend cap declared for this connector. Experiments can change bids without a ceiling.", "", "unset", `editBudget('${p.id}')`);
+
+  const br = pol.brand;
+  const brand = br
+    ? guardCard("Brand &amp; claims", `${br.limits ? `${br.limits.title}/${br.limits.description}` : ""}<span style="font-size:11px;color:var(--text-2)"> chars</span>`,
+        `Copy is generated and ships under your name on ${br.domain || "the linked domain"}.`,
+        `<ul class="grules">${(br.rules||[]).map(r => `<li>${r}</li>`).join("")}</ul>`, "", `editBrand('${p.id}')`)
+    : guardCard("Brand &amp; claims", "not set", "Nothing constrains what generated copy may say.", "", "unset", `editBrand('${p.id}')`);
+
+  return `<div class="sect">
+    <div class="collhead"><span class="plabel">Guardrails</span>
+      <span class="mono" style="font-size:10.5px;color:var(--text-2)">what limits the agent</span></div>
+    ${guardCard("Autonomy", p.autonomy, copy[0], rungs + act, copy[1] ? "warn" : "", null, headBtn)}
+    ${budget}
+    ${brand}
+  </div>`;
 }
 window.__coll = window.__coll || {};
 function toggleExps(id){ window.__coll[id] = !window.__coll[id]; renderProcesses(window.__procs || []); }
-function expListSect(p){
-  const rows = [];
-  for (const c of (p.candidates||[]).slice().sort((a,b)=>b.expected_multiple-a.expected_multiple)){
-    rows.push(`<div class="exprow">
-      <span class="badge b-choose">proposed</span>
+window.__expOpen = window.__expOpen || {};
+function expOpen(e){
+  // undefined = never touched: a running experiment shows its arms by default,
+  // a decided one stays folded.
+  const v = window.__expOpen[e.id];
+  return v === undefined ? (e.status === "running" || e.status === "launching") : v;
+}
+function toggleExp(eid, cur){ window.__expOpen[eid] = !cur; renderProcesses(window.__procs || []); }
+function splitRows(sp){
+  if (!sp || !sp.length) return "";
+  return `<div class="splitwrap">
+    <div class="plabel" style="margin-bottom:2px">Arms</div>
+    <div class="sub" style="padding:0 14px 8px;font-size:11px">What a visitor gets in each arm. Dashed values were adopted by earlier experiments and ride along. The two right columns are the raw metric and that arm against control.</div>
+    ${sp.map(a => `<div class="arm ${a.key}">
+      <span class="armkey">${a.label}</span>
+      <span class="armbar"><i style="width:${Math.max(3, a.share*100)}%"></i></span>
+      <span class="armshare">${a.shareExact ? "" : "~"}${Math.round(a.share*100)}%</span>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:500">${c.field}: ${c.control_value} → <b>${c.variant_value}</b></div>
-        <div class="sub" style="margin-top:2px">${c.rationale}</div>
-        <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${p.goal && c.metric === p.goal.metric ? "✓ " : "⚠ off-goal: "}${c.metric}${c.inverse?" (1/x)":""} · expected ~×${c.expected_multiple.toFixed(2)}</div>
+        <div class="armcfg">${a.config.map(c => `<span class="${c.inherited?"inh":""}">${c.field}: ${c.value}</span>`).join("")}</div>
+        <div class="sub" style="margin-top:4px;font-size:11.5px">${a.note}</div>
       </div>
-      <button class="btn primary" style="padding:4px 12px" onclick="event.stopPropagation();post('/api/accept',{candidate:'${c.id}'})">Accept</button>
-      <button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();post('/api/dismiss',{candidate:'${c.id}'})">Dismiss</button>
-    </div>`);
-  }
+      <span class="armraw">${fmtRaw(a.raw, a.unit)}</span>
+      <span class="armmult ${a.multiple==null?"none":a.key==="control"?"ref":a.multiple>1?"up":a.multiple<1?"down":"ref"}">${a.multiple==null?"—":fmtX(a.multiple)}</span>
+    </div>`).join("")}
+  </div>`;
+}
+const fmtRaw = (v, u) => v == null ? "—"
+  : u === "%" ? v.toFixed(2) + "%"
+  : u === "$" ? "$" + v.toFixed(2)
+  : u === "x" ? "×" + v.toFixed(2)
+  : (Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : v.toFixed(2));
+const KV = (k, v) => `<div><span>${k}</span><span class="val">${v}</span></div>`;
+function expGroup(title, count, rows, extra, empty){
+  if (!rows.length && !extra) return "";
+  return `<div class="expgroup">
+    <div class="expgrouphead"><span class="plabel">${title}</span>
+      ${count != null ? `<span class="mono" style="font-size:10.5px;color:var(--text-2)">${count}</span>` : ""}
+      <span style="flex:1"></span>${extra || ""}</div>
+    ${rows.length ? `<div class="explist">${rows.join("")}</div>`
+      : `<div class="explist" style="padding:11px 14px"><span class="sub">${empty || ""}</span></div>`}
+  </div>`;
+}
+function expListSect(p){
   const d10 = ts => new Date(ts).toISOString().slice(0,10);
-  const exps = (p.experiments||[]);
+  const exps = p.experiments || [];
+  const running = [], suggested = [], finished = [];
+
   for (const e of exps.filter(e => e.status === "launching")){
     const failed = e.launch_note && e.launch_note.startsWith("launch failed");
-    rows.push(`<div class="exprow">
+    running.push(`<div class="exprow">
       <span class="badge ${failed ? "b-regressed" : "b-analyzing pulsing"}">${failed ? "launch failed" : "launching"}</span>
       <div style="flex:1;min-width:0">
         <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
@@ -963,47 +1041,156 @@ function expListSect(p){
     </div>`);
   }
   for (const e of exps.filter(e => e.status === "running")){
-    const dayN = Math.min(Math.ceil((Date.now()-e.started_at)/86400000), Math.round((e.ends_at-e.started_at)/86400000));
     const days = Math.round((e.ends_at-e.started_at)/86400000);
-    rows.push(`<div class="exprow">
-      <span class="badge b-open">running</span>
+    const dayN = Math.min(Math.ceil((Date.now()-e.started_at)/86400000), days);
+    const openR = expOpen(e);
+    running.push(`<div class="exprow" style="cursor:pointer" onclick="event.stopPropagation();toggleExp('${e.id}',${openR})">
+      <span class="badge b-running">running</span>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
-        <div class="sub" style="margin-top:2px">day ${dayN} of ${days} · vs control</div>
+        <div style="font-size:12.5px;font-weight:500"><span class="chev" style="transform:rotate(${openR?90:0}deg)">▸</span><span class="mono">${e.id}</span>${e.object?` <span class="cchip">${e.object}</span>`:""} — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
+        <div class="sub" style="margin-top:2px">day ${dayN} of ${days} · vs control · to ${d10(e.ends_at)}</div>
       </div>
+      <span class="armraw" style="width:auto;margin-right:10px">${fmtRaw(e.baseline != null && e.last_multiple != null ? e.baseline * e.last_multiple : null, e.baseline_unit)}</span>
       <span class="mono" style="font-weight:600;${e.last_multiple==null?"color:var(--text-2)":e.last_multiple>1?"color:var(--green)":"color:var(--scarlet)"}">${e.last_multiple==null?"—":fmtX(e.last_multiple)+"…"}</span>
     </div>`);
+    if (openR) running.push(`<div class="outcomepanel">${splitRows(e.split)}</div>`);
   }
-  for (const e of exps.filter(e => (e.status === "won" || e.status === "failed") && !e.outcome)){
-    const ho = e.holdout_status === "validated" ? ` <span style="color:var(--green)">✓ validated</span>`
-      : e.holdout_status === "regressed" ? ` <span style="color:var(--scarlet)">✗ regressed</span>`
-      : e.holdout_status === "validating" ? ` <span class="sub">holdout…</span>` : "";
-    rows.push(`<div class="exprow">
-      <span class="badge b-${e.status==="won"?"validated":"regressed"}">${e.status}</span>
+  for (const c of (p.candidates||[]).slice().sort((a,b)=>b.expected_multiple-a.expected_multiple)){
+    suggested.push(`<div class="exprow">
+      <span class="badge b-choose">proposed</span>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:500"><span class="mono">${e.id}</span> — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
-        <div class="sub" style="margin-top:2px">${d10(e.started_at)} → ${d10(e.ends_at)}${ho}</div>
+        <div style="font-size:12.5px;font-weight:500">${c.field}: ${c.control_value} → <b>${c.variant_value}</b></div>
+        <div class="sub" style="margin-top:2px">${c.rationale}</div>
+        <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${p.goal && c.metric === p.goal.metric ? "✓ " : "⚠ off-goal: "}${c.metric}${c.inverse?" (1/x)":""} · expected ~×${c.expected_multiple.toFixed(2)}</div>
       </div>
-      <span class="mono" style="font-weight:600;color:${e.status==="won"?"var(--green)":"var(--scarlet)"}">${e.final_multiple==null?"—":fmtX(e.final_multiple)}</span>
-      ${e.record_id ? `<button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();openRecord('${e.record_id}')">event →</button>` : ""}
+      <button class="btn primary" style="padding:4px 12px" onclick="event.stopPropagation();post('/api/accept',{candidate:'${c.id}'})">Start</button>
+      <button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();post('/api/dismiss',{candidate:'${c.id}'})">Dismiss</button>
     </div>`);
   }
-  if (!rows.length && !p.goal) return "";
+  // What the winning arm MEANS, not just which one it was.
+  const winLabel = (w, aa) => w === "variant" ? ["variant adopted","good"]
+    : w === "control" ? ["no change",""]
+    : aa ? ["measurement suspect","bad"] : ["auto-reverted","warn"];
+  for (const e of exps.filter(e => e.status === "won" || e.status === "failed")){
+    const o = e.outcome;
+    const open = expOpen(e);
+    const rb = o ? (o.review_state in REVIEW_BADGE ? REVIEW_BADGE[o.review_state] : [o.review_state,"open"]) : null;
+    const hb = o ? HOLD_BADGE[o.holdout_state] : null;
+    const w = o ? (o.winner || (o.verdict === "won" ? "variant" : "control")) : null;
+    // The number that matters is the WINNING arm's, not always the variant's.
+    const wMult = !o ? null : w === "variant" ? o.final_multiple : w === "holdout" ? o.holdout_multiple : 1;
+    const isAA = e.holdout_field === e.field && e.holdout_value === e.control_value;
+    const wl = w ? winLabel(w, isAA) : null;
+    finished.push(`<div class="exprow" style="cursor:pointer" onclick="event.stopPropagation();toggleExp('${e.id}',${open})">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:500"><span class="chev" style="transform:rotate(${open?90:0}deg)">▸</span><span class="mono">${e.id}</span>${e.object?` <span class="cchip">${e.object}</span>`:""} — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
+        <div class="sub" style="margin-top:3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          ${rb ? `<span class="badge b-${rb[1]}" style="margin-left:0">${rb[0]}</span>` : ""}
+          ${hb ? `<span class="badge b-${hb[1]}" style="margin-left:0">legacy ${hb[0]}</span>` : ""}
+          <span class="mono" style="font-size:10.5px">decided ${d10(e.ends_at)}</span>
+        </div>
+      </div>
+      <div class="rawcell">
+        <div class="rawlab">${o && o.goal_metric ? o.goal_metric : "result"}</div>
+        <div class="rawval">${fmtRaw(e.baseline != null && wMult != null ? e.baseline * wMult : null, e.baseline_unit)}</div>
+      </div>
+      <div class="winnercell">
+        <div class="winnerarm ${wl?wl[1]:""}">${wl ? wl[0] : "—"}</div>
+        <div class="winnermult ${wl?wl[1]:""}">${wMult==null?"—":fmtX(wMult)}</div>
+      </div>
+    </div>`);
+    if (open && o) finished.push(outcomePanel(e));
+  }
+
+  if (!running.length && !suggested.length && !finished.length && !p.goal) return "";
+  const oc = p.outcomes || {};
   const open = !window.__coll[p.id];
-  if (!rows.length) return `<div class="sect">
-    <div class="collhead"><span class="plabel">Experiments</span></div>
-    <div class="explist" style="padding:12px 14px"><span class="sub">Scouting experiments against ${p.goal.metric}…</span></div>
-  </div>`;
+  const total = exps.length + (p.candidates||[]).length;
+  const rescout = `<button class="btn ghost" style="padding:3px 10px;font-size:11.5px" onclick="event.stopPropagation();post('/api/rescout',{id:'${p.id}'})">↻ New suggestions</button>`;
   return `<div class="sect">
     <div class="collhead" onclick="event.stopPropagation();toggleExps('${p.id}')">
       <span style="display:inline-block;transition:transform .2s;transform:rotate(${open?90:0}deg)">▸</span>
-      <span class="plabel">Experiments</span><span class="mono" style="font-size:10.5px;color:var(--text-2)">${rows.length}</span>
+      <span class="plabel">Experiments</span><span class="mono" style="font-size:10.5px;color:var(--text-2)">${total}</span>
       ${p.goal ? `<span class="mono" style="font-size:10.5px;color:var(--text-2)">· measured against ${p.goal.metric}</span>` : ""}
-      <span style="flex:1"></span>
-      <button class="btn ghost" style="padding:3px 10px;font-size:11.5px" onclick="event.stopPropagation();post('/api/rescout',{id:'${p.id}'})">↻ New suggestions</button>
+      ${oc.open ? `<span class="badge b-open" style="margin-left:4px">${oc.open} awaiting review</span>` : ""}
     </div>
-    ${open ? `<div class="explist">${rows.join("")}</div>` : ""}
+    ${open ? [
+      expGroup("Running", running.filter(r=>r.startsWith('<div class="exprow')).length, running, "",
+               p.goal ? `Nothing running. OpenXPLI proposes the next experiment below.` : ""),
+      expGroup("Suggested new experiments to start", (p.candidates||[]).length, suggested, rescout,
+               "Scouting for the next experiment against " + (p.goal ? p.goal.metric : "the goal") + "…"),
+      expGroup("Finished", finished.filter(r=>r.startsWith('<div class="exprow')).length, finished, "", ""),
+    ].join("") : ""}
   </div>`;
+}
+function procById(pid){ return (window.__procs || []).find(x => x.id === pid) || {}; }
+function editBudget(pid){
+  const p = procById(pid), b = (p.policy||{}).budget || {};
+  formModal("Budget guardrail", [
+    `<div class="sub" style="line-height:1.5">A ceiling OpenXPLI will not raise. A variant whose projected spend would exceed it is never started.</div>`,
+    F("g-cap","Daily cap", "150.00", `value="${b.daily_cap ?? ""}"`),
+    F("g-cur","Currency", "USD", `value="${b.currency ?? "USD"}"`),
+    F("g-src","Where this comes from", "campaign daily budget", `value="${esc(b.source ?? "")}"`),
+  ].join(""), "Save", async () => {
+    const cap = Number(val("g-cap"));
+    if (!(cap > 0)) return toast("<b>Daily cap must be a positive number.</b>");
+    const d = await post("/api/policy", { id: pid, patch: { budget: {
+      daily_cap: cap, currency: val("g-cur") || "USD", source: val("g-src"),
+      note: "OpenXPLI never raises the cap; a variant that would exceed it is not started." } } });
+    if (d.ok) closeExp();
+  });
+}
+function editBrand(pid){
+  const p = procById(pid), br = (p.policy||{}).brand || {};
+  formModal("Brand &amp; claims guardrail", [
+    `<div class="sub" style="line-height:1.5">Generated copy ships under your name. These rules are given to the model that writes variants and checked before a variant is started.</div>`,
+    F("g-dom","Domain copy points at", "edgedelta.com", `value="${esc(br.domain ?? "")}"`),
+    `<div style="display:flex;gap:10px">
+      <div style="flex:1">${F("g-lt","Title limit", "50", `value="${br.limits?.title ?? ""}"`)}</div>
+      <div style="flex:1">${F("g-ld","Description limit", "100", `value="${br.limits?.description ?? ""}"`)}</div>
+    </div>`,
+    TA("g-rules","Rules — one per line", "Every claim must already appear on the linked page", esc((br.rules||[]).join("\n")), 7),
+  ].join(""), "Save", async () => {
+    const rules = val("g-rules").split("\n").map(r => r.trim()).filter(Boolean);
+    const d = await post("/api/policy", { id: pid, patch: { brand: {
+      domain: val("g-dom"),
+      limits: { title: Number(val("g-lt")) || null, description: Number(val("g-ld")) || null },
+      rules } } });
+    if (d.ok) closeExp();
+  });
+}
+function editRails(pid){
+  const p = procById(pid), rails = (p.goal && p.goal.guardrails) || [];
+  const asText = rails.map(r => `${r.metric} must not ${r.direction === "must-not-rise" ? "rise" : "drop"}`).join("\n");
+  formModal("Metric guardrails", [
+    `<div class="sub" style="line-height:1.5">Secondary metrics that must not regress while chasing <b>${p.goal ? p.goal.metric : "the goal"}</b>. One per line, each ending in <span class="mono">must not rise</span> or <span class="mono">must not drop</span>. Changing these amends the goal's ledger record.</div>`,
+    TA("g-rails","Guardrails", "average CPC must not rise", esc(asText), 5),
+  ].join(""), "Save &amp; amend record", async () => {
+    const lines = val("g-rails").split("\n").map(r => r.trim()).filter(Boolean);
+    const d = await post("/api/guardrails", { id: pid, rails: lines });
+    if (d.ok) closeExp();
+  });
+}
+function openKnowledge(pid){
+  const p = (window.__procs || []).find(x => x.id === pid);
+  if (!p || !p.map) return;
+  let el = document.getElementById("modal-root");
+  if (!el){ el = document.createElement("div"); el.id = "modal-root"; document.body.appendChild(el); }
+  const esc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  el.innerHTML = `<div class="shade" onclick="closeExp()"><div class="modal" style="width:820px;padding:0" onclick="event.stopPropagation()">
+    <div style="padding:20px 24px 14px;border-bottom:1px solid var(--border-1);display:flex;align-items:baseline;gap:10px">
+      <span style="font-weight:700;font-size:17px">Connector knowledge</span>
+      <span class="mono" style="font-size:12px;color:var(--text-2)">${p.id}</span>
+      <span style="flex:1"></span>
+      <button class="btn ghost" onclick="closeExp()">✕</button>
+    </div>
+    <div style="padding:16px 24px;max-height:62vh;overflow-y:auto">
+      <div style="font:12.5px/1.65 var(--mono);white-space:pre-wrap">${esc(p.map)}</div>
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid var(--border-1)">
+      <span class="sub" style="font-size:11.5px">Read from ${p.tool} in shadow mode — a read-only crawl. This is what the scout proposes experiments from; nothing here was changed.</span>
+    </div>
+  </div></div>`;
 }
 function selectProc(id){ selProc = selProc === id ? null : id; renderProcesses(window.__procs || []); }
 function openRecord(id){ selRec = id; setView("ledger"); }

@@ -1,5 +1,5 @@
 import { openDb, type ExperimentRow, type ProcessRow } from "./db.js";
-import { HOUR_MS } from "./paths.js";
+import { HOUR_MS, DEFAULT_VARIANT_SHARE, DEFAULT_HOLDOUT_ARM_SHARE, AA_HOLDOUT } from "./paths.js";
 import { ratifiedGoal, adoptGoal } from "./goals.js";
 
 export interface EnrollOpts {
@@ -39,9 +39,11 @@ export function enrollProcess(o: EnrollOpts): string {
   return `enrolled ${o.id} (${o.tool}, goal: ${o.metric}${o.inverse ? " 1/x" : ""} -> ${g}, autonomy: ${autonomy})`;
 }
 
-export function startExperiment(processId: string, field: string, control: string, variant: string, days = 7, status: "running" | "launching" = "running"): string {
+export function startExperiment(processId: string, field: string, control: string, variant: string, days = 7, status: "running" | "launching" = "running", share?: number, object?: string, baseline?: number, baselineUnit?: string): string {
   if (!field || !control || !variant) throw new Error("start: --field, --control, and --variant are required");
   if (!(days >= 1 && days <= 28)) throw new Error("start: --days must be 1..28");
+  if (share != null && !(share > 0 && share < 1))
+    throw new Error("start: --share must be between 0 and 1 (variant's share of traffic)");
   const db = openDb();
   const proc = db.prepare("SELECT * FROM processes WHERE id = ?").get(processId) as ProcessRow | undefined;
   if (!proc) throw new Error(`start: no such process: ${processId} (enroll it first)`);
@@ -62,8 +64,38 @@ export function startExperiment(processId: string, field: string, control: strin
   const goal = ratifiedGoal(processId);
   if (!goal)
     throw new Error(`start: ${processId} has no ratified goal — run \`openxpli goals ${processId}\` and ratify one first`);
+
+  // The holdout arm is v(current--): the configuration in force before the last
+  // ADOPTED change on this goal. A predecessor that lost, or won but was never
+  // merged, moved nothing — so there is nothing to hold back and the experiment
+  // runs on two arms. The first experiment under a goal is always two-armed.
+  const prev = db.prepare(
+    `SELECT e.field, e.control_value FROM outcomes o JOIN experiments e ON e.id = o.experiment_id
+     WHERE o.process_id = ? AND o.goal_id = ? AND o.review_state = 'merged'
+     ORDER BY e.ends_at DESC LIMIT 1`
+  ).get(processId, goal.id) as { field: string; control_value: string } | undefined;
+  const policy = JSON.parse(proc.policy || "{}") as { holdout_share?: number };
+  // No adopted predecessor: the holdout arm runs A/A against control instead of
+  // being dropped, so every experiment carries one and the measurement gets
+  // checked on every cycle.
+  const aa = !prev && AA_HOLDOUT;
+  const hShare = (prev || aa) ? (typeof policy.holdout_share === "number" ? policy.holdout_share : DEFAULT_HOLDOUT_ARM_SHARE) : 0;
+  if (hShare < 0 || hShare >= 1) throw new Error("start: policy.holdout_share must be between 0 and 1");
+  // Undeclared variant share splits whatever the holdout arm leaves, evenly —
+  // so a three-armed run is 20/40/40 and a two-armed one is 50/50.
+  const vShare = share ?? (1 - hShare) / 2;
+  if (hShare + vShare >= 1) throw new Error(`start: holdout ${hShare} + variant ${vShare} leaves nothing for control`);
   db.prepare(
-    "INSERT INTO experiments (id, process_id, field, control_value, variant_value, started_at, ends_at, status, goal_id) VALUES (?,?,?,?,?,?,?,?,?)"
-  ).run(id, processId, field, control, variant, now, now + days * 24 * HOUR_MS, status, goal?.id ?? null);
-  return `started ${id}: ${field}: ${control} -> ${variant} (${days}d run; first reads on next harvest)`;
+    `INSERT INTO experiments (id, process_id, field, control_value, variant_value, started_at, ends_at, status,
+       goal_id, share, holdout_field, holdout_value, holdout_share, object, baseline, baseline_unit)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).run(id, processId, field, control, variant, now, now + days * 24 * HOUR_MS, status,
+        goal.id, vShare, prev ? prev.field : (aa ? field : null), prev ? prev.control_value : (aa ? control : null), hShare || null,
+        object?.trim() || null, baseline ?? null, baselineUnit ?? null);
+  const arms = prev
+    ? `3 arms — holdout ${Math.round(hShare * 100)}% (${prev.field}: ${prev.control_value}), control ${Math.round((1 - hShare - vShare) * 100)}%, variant ${Math.round(vShare * 100)}%`
+    : aa
+    ? `3 arms — holdout ${Math.round(hShare * 100)}% A/A (nothing adopted yet, so it re-tests the measurement), control ${Math.round((1 - hShare - vShare) * 100)}%, variant ${Math.round(vShare * 100)}%`
+    : `2 arms — control ${Math.round((1 - vShare) * 100)}%, variant ${Math.round(vShare * 100)}%`;
+  return `started ${id}${object ? ` on “${object}”` : ""}: ${field}: ${control} -> ${variant} (${days}d run; ${arms})`;
 }

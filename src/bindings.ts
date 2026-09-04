@@ -6,9 +6,10 @@ import type { ExperimentRow } from "./db.js";
 // historical hours (most reporting surfaces can) enable backfill after a
 // missed tick; ones that can't return null and the gap is recorded honestly.
 export interface Reading {
-  multiple: number;
+  multiple: number;          // variant vs control
   sigma: number;
   source: string;
+  holdoutMultiple?: number;  // holdout arm vs control, when the experiment has one
 }
 
 export interface Binding {
@@ -41,7 +42,23 @@ export const syntheticBinding: Binding = {
     // (same decay the console's design uses: 0.11/(h+2)^0.7 * (1-t)^1.3)
     const amp = (0.11 / Math.pow(hour + 2, 0.7)) * Math.pow(1 - t, 1.3);
     const noise = ((fnv(`${exp.id}:${hour}`) % 2001) / 1000 - 1) * amp;
-    return { multiple: eased + noise, sigma: amp * 1.5, source: "synthetic" };
+    const out: Reading = { multiple: eased + noise, sigma: amp * 1.5, source: "synthetic" };
+    // The holdout arm is v(current--): the configuration before the last adopted
+    // change. It should normally sit BELOW control — that change won once — but
+    // a deterministic slice regresses, which is the whole point of racing it.
+    if (exp.holdout_share) {
+      const isAA = exp.holdout_field === exp.field && exp.holdout_value === exp.control_value;
+      if (isAA) {
+        // Same configuration as control: pure measurement noise around x1.00.
+        out.holdoutMultiple = 1 + ((fnv(`${exp.id}:aa:${hour}`) % 2001) / 1000 - 1) * amp;
+        return out;
+      }
+      const regresses = fnv(`${exp.id}:hfate`) % 100 < 18;
+      const hTarget = regresses ? 1.02 + (fnv(`${exp.id}:h`) % 6) / 100 : 0.94 + (fnv(`${exp.id}:h`) % 5) / 100;
+      const hNoise = ((fnv(`${exp.id}:hh:${hour}`) % 2001) / 1000 - 1) * amp;
+      out.holdoutMultiple = 1 + (hTarget - 1) * easeInOut(t) + hNoise;
+    }
+    return out;
   },
 };
 

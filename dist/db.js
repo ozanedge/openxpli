@@ -83,6 +83,15 @@ export function openDb() {
     ensureColumn(db, "experiments", "record_id", "TEXT");
     ensureColumn(db, "experiments", "launch_note", "TEXT");
     ensureColumn(db, "experiments", "goal_id", "TEXT");
+    ensureColumn(db, "experiments", "share", "REAL");
+    ensureColumn(db, "experiments", "holdout_field", "TEXT");
+    ensureColumn(db, "experiments", "holdout_value", "TEXT");
+    ensureColumn(db, "experiments", "holdout_share", "REAL");
+    ensureColumn(db, "experiments", "object", "TEXT");
+    ensureColumn(db, "experiments", "baseline", "REAL");
+    ensureColumn(db, "experiments", "baseline_unit", "TEXT");
+    ensureColumn(db, "observations", "holdout_multiple", "REAL");
+    ensureColumn(db, "outcomes", "winner", "TEXT");
     return db;
 }
 function ensureColumn(db, table, col, ddl) {

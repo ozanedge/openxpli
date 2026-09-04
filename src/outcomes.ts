@@ -12,21 +12,51 @@ export function outcomeFor(experimentId: string): OutcomeRow | null {
   return (openDb().prepare("SELECT * FROM outcomes WHERE experiment_id = ?").get(experimentId) as OutcomeRow | undefined) ?? null;
 }
 
-export function recordOutcome(exp: ExperimentRow, verdict: "won" | "failed", finalMultiple: number, recordId: string | null): void {
+export function recordOutcome(
+  exp: ExperimentRow,
+  winner: "variant" | "control" | "holdout",
+  finalMultiple: number,
+  recordId: string | null,
+  holdoutMultiple: number | null = null
+): void {
+  const verdict = winner === "variant" ? "won" : "failed";
   openDb().prepare(
-    `INSERT INTO outcomes (experiment_id, process_id, goal_id, verdict, final_multiple, record_id, review_state, holdout_state, decided_at)
-     VALUES (?,?,?,?,?,?,?,?,?)
+    `INSERT INTO outcomes (experiment_id, process_id, goal_id, verdict, winner, final_multiple, record_id,
+       review_state, holdout_state, holdout_multiple, decided_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)
      ON CONFLICT(experiment_id) DO UPDATE SET
-       verdict = excluded.verdict, final_multiple = excluded.final_multiple,
+       verdict = excluded.verdict, winner = excluded.winner, final_multiple = excluded.final_multiple,
        record_id = excluded.record_id, review_state = excluded.review_state,
-       holdout_state = excluded.holdout_state, reviewed_at = NULL, decided_at = excluded.decided_at`
+       holdout_state = excluded.holdout_state, holdout_multiple = excluded.holdout_multiple,
+       reviewed_at = NULL, decided_at = excluded.decided_at`
   ).run(
-    exp.id, exp.process_id, exp.goal_id, verdict, finalMultiple, recordId,
-    // A loss is never adopted, so there is nothing for a human to approve.
-    verdict === "won" ? "open" : "auto-reverted",
-    verdict === "won" ? "validating" : "none",
+    exp.id, exp.process_id, exp.goal_id, verdict, winner, finalMultiple, recordId,
+    // Only a variant win is a proposal for a human to adopt. Control winning
+    // changes nothing, and a holdout win reverts the PREVIOUS experiment — this
+    // one still adopted nothing of its own.
+    winner === "variant" ? "open" : "no-change",
+    // The trailing-holdout phase is gone: the NEXT experiment's holdout arm is
+    // the re-test. Legacy rows already validating keep their own state.
+    "none",
+    holdoutMultiple,
     Date.now()
   );
+}
+
+// The holdout arm beating control means the change adopted before this one is
+// not holding. Step v(current) back by un-merging it — the live configuration
+// is derived from merged outcomes, so this reverts by construction.
+export function revertPreviousAdoption(processId: string, goalId: string | null, beforeEndsAt: number): string | null {
+  const db = openDb();
+  const prev = db.prepare(
+    `SELECT o.experiment_id, o.record_id FROM outcomes o JOIN experiments e ON e.id = o.experiment_id
+     WHERE o.process_id = ? AND o.goal_id IS ? AND o.review_state = 'merged' AND e.ends_at < ?
+     ORDER BY e.ends_at DESC LIMIT 1`
+  ).get(processId, goalId, beforeEndsAt) as { experiment_id: string; record_id: string | null } | undefined;
+  if (!prev) return null;
+  db.prepare("UPDATE outcomes SET review_state = 'reverted', reviewed_at = ? WHERE experiment_id = ?")
+    .run(Date.now(), prev.experiment_id);
+  return prev.record_id ?? prev.experiment_id;
 }
 
 export function setReviewState(experimentId: string, state: OutcomeRow["review_state"]): void {
@@ -64,7 +94,8 @@ const REVIEW_FROM_RECORD: [RegExp, OutcomeRow["review_state"]][] = [
   [/^- \*\*status:\*\* *merged/im, "merged"],
   [/^- \*\*status:\*\* *rejected/im, "rejected"],
   [/^- \*\*status:\*\* *reopened/im, "reopened"],
-  [/^- \*\*status:\*\* *reverted/im, "auto-reverted"],
+  [/^- \*\*status:\*\* *regression/im, "no-change"],
+  [/^- \*\*status:\*\* *reverted/im, "no-change"],
   [/^- \*\*status:\*\* *open/im, "open"],
 ];
 
@@ -78,7 +109,7 @@ export function backfillOutcomes(): number {
   ).all() as ExperimentRow[];
   let n = 0;
   for (const e of decided) {
-    let review: OutcomeRow["review_state"] = e.status === "won" ? "open" : "auto-reverted";
+    let review: OutcomeRow["review_state"] = e.status === "won" ? "open" : "no-change";
     if (e.record_id) {
       const path = join(LEDGER_DIR, `${e.record_id}.md`);
       if (existsSync(path)) {

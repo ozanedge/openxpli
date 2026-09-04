@@ -20,17 +20,25 @@ export interface ExperimentRow {
   variant_value: string;
   started_at: number;
   ends_at: number;
-  status: "running" | "won" | "failed";
+  status: "running" | "launching" | "won" | "failed";
   final_multiple: number | null;
   record_id: string | null;
   goal_id: string | null; // the goal this experiment was started under
+  share: number | null;   // declared variant share of this experiment's traffic
+  holdout_field: string | null;  // the field the holdout arm reverts
+  holdout_value: string | null;  // v(current--) — what the holdout arm serves
+  holdout_share: number | null;  // 0 or null when this experiment has no holdout arm
+  object: string | null;         // the thing that was duplicated to run this (an ad, a campaign)
+  baseline: number | null;       // the control arm's absolute metric value — every multiple hangs off this
+  baseline_unit: string | null;  // '%', '$' or '' — how to render the raw number
 }
 
 export interface ObservationRow {
   experiment_id: string;
   hour: number; // run: 1..168; holdout: continues 169..(168+VALIDATION_HOURS)
   ts: number;
-  multiple: number | null; // cumulative multiple vs control; null when missing
+  multiple: number | null; // variant vs control; null when missing
+  holdout_multiple: number | null; // holdout vs control; null when there is no holdout arm
   sigma: number | null;
   source: string; // binding that produced it: api | cli | browser | synthetic
   missing: number; // 1 = unfillable gap, recorded honestly
@@ -60,9 +68,10 @@ export interface OutcomeRow {
   process_id: string;
   goal_id: string | null;   // what this run was measured against
   verdict: "won" | "failed";
+  winner: "variant" | "control" | "holdout" | null; // which arm topped the race
   final_multiple: number | null;
   record_id: string | null; // the ledger narrative for this outcome
-  review_state: "open" | "merged" | "rejected" | "reopened" | "auto-reverted";
+  review_state: "open" | "merged" | "rejected" | "reopened" | "no-change" | "reverted";
   reviewed_at: number | null;
   holdout_state: "none" | "validating" | "validated" | "regressed" | "cancelled";
   holdout_multiple: number | null;
@@ -167,6 +176,15 @@ export function openDb(): Database.Database {
   ensureColumn(db, "experiments", "record_id", "TEXT");
   ensureColumn(db, "experiments", "launch_note", "TEXT");
   ensureColumn(db, "experiments", "goal_id", "TEXT");
+  ensureColumn(db, "experiments", "share", "REAL");
+  ensureColumn(db, "experiments", "holdout_field", "TEXT");
+  ensureColumn(db, "experiments", "holdout_value", "TEXT");
+  ensureColumn(db, "experiments", "holdout_share", "REAL");
+  ensureColumn(db, "experiments", "object", "TEXT");
+  ensureColumn(db, "experiments", "baseline", "REAL");
+  ensureColumn(db, "experiments", "baseline_unit", "TEXT");
+  ensureColumn(db, "observations", "holdout_multiple", "REAL");
+  ensureColumn(db, "outcomes", "winner", "TEXT");
   return db;
 }
 

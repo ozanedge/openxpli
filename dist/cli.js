@@ -7,26 +7,29 @@ import { HOUR_MS, DEFAULT_RUN_HOURS, HEARTBEAT_PATH } from "./paths.js";
 import { existsSync, readFileSync } from "node:fs";
 const cmd = process.argv[2];
 async function enrollDemo() {
-    // Seeds the dogfood process with two experiments: one that completed
-    // (exercises finalize -> ledger record -> git commit) and one mid-flight
-    // started 30h ago (exercises catch-up backfill on the first harvest).
+    // Seeds the ads.openai.com connector — the wedge this engine is being built
+    // for — with one finished experiment (exercises finalize -> ledger -> record)
+    // and one mid-flight run started 30h ago (exercises catch-up backfill).
     const db = openDb();
     const now = Date.now();
-    db.prepare("INSERT OR IGNORE INTO processes (id, tool, metric, inverse, autonomy, status, policy, created_at) VALUES (?,?,?,?,?,?,?,?)").run("openxpli/readme-quickstart", "GitHub", "install conversion", 0, "human-gated", "running", JSON.stringify({ guardrails: ["doc engagement must not drop"], blast_radius: "README only" }), now);
-    const ins = db.prepare("INSERT OR IGNORE INTO experiments (id, process_id, field, control_value, variant_value, started_at, ends_at, status) VALUES (?,?,?,?,?,?,?, 'running')");
-    // Old enough that the 7d run AND the 14d trailing holdout both complete
-    // on the first harvest — exercising the full validate/regress path.
-    const doneStart = now - 520 * HOUR_MS;
-    ins.run("readme-quickstart/081926", "openxpli/readme-quickstart", "quickstart heading", "Getting started", "Run your first experiment in 5 minutes", doneStart, doneStart + DEFAULT_RUN_HOURS * HOUR_MS);
-    const liveStart = now - 30 * HOUR_MS;
-    ins.run("readme-quickstart/082526", "openxpli/readme-quickstart", "install command placement", "below the fold", "first code block", liveStart, liveStart + DEFAULT_RUN_HOURS * HOUR_MS);
+    const id = "ads-openai/main-account";
+    db.prepare("INSERT OR IGNORE INTO processes (id, tool, metric, inverse, autonomy, status, policy, created_at) VALUES (?,?,?,?,?,?,?,?)").run(id, "ChatGPT Ads", "cost per acquisition", 1, "human-gated", "running", JSON.stringify({ guardrails: ["conversion volume must not drop", "daily spend must not rise"], blast_radius: "$250/day spend cap" }), now);
     const { ratifiedGoal, adoptGoal } = await import("./goals.js");
-    const gid = ratifiedGoal("openxpli/readme-quickstart")?.id
-        ?? adoptGoal("openxpli/readme-quickstart", "install conversion", 0, ["doc engagement must not drop"], "Specified when the dogfood connector was seeded.");
-    db.prepare("UPDATE experiments SET goal_id = ? WHERE process_id = 'openxpli/readme-quickstart' AND goal_id IS NULL").run(gid);
-    // The demo exercises the real model, so it gets a real ratified goal and both
-    // runs are bound to it.
-    console.log("enrolled demo process openxpli/readme-quickstart with 2 experiments (1 completed, 1 running)");
+    const gid = ratifiedGoal(id)?.id
+        ?? adoptGoal(id, "cost per acquisition", 1, ["conversion volume must not drop", "daily spend must not rise"], "Ties the account to what a customer actually costs. Guardrailed on volume because CPA is trivially improved by simply buying less.");
+    const { startExperiment } = await import("./enroll.js");
+    const ins = db.prepare(`INSERT OR IGNORE INTO experiments (id, process_id, field, control_value, variant_value, started_at, ends_at,
+       status, goal_id, share, holdout_field, holdout_value, holdout_share) VALUES (?,?,?,?,?,?,?, 'running', ?,?,?,?,?)`);
+    // Old enough that it finalizes on the first harvest. Its holdout arm is A/A:
+    // nothing had been adopted when it started.
+    const doneStart = now - 520 * HOUR_MS;
+    ins.run("main-account/0819", id, "creative format", "static image", "short motion loop", doneStart, doneStart + DEFAULT_RUN_HOURS * HOUR_MS, gid, 0.4, "creative format", "static image", 0.2);
+    // The live run's holdout is A/A too: the first experiment has not been merged,
+    // so there is still no adopted change to re-test.
+    const liveStart = now - 30 * HOUR_MS;
+    ins.run("main-account/0825", id, "bid", "current CPC bid", "bid -15% with dayparting", liveStart, liveStart + DEFAULT_RUN_HOURS * HOUR_MS, gid, 0.4, "bid", "current CPC bid", 0.2);
+    void startExperiment;
+    console.log(`enrolled demo connector ${id} (ChatGPT Ads, goal: cost per acquisition) with 2 experiments (1 completed, 1 running)`);
 }
 function status() {
     const db = openDb();
@@ -279,8 +282,8 @@ switch (cmd) {
         const flag = (n) => { const i = process.argv.indexOf(`--${n}`); return i > -1 ? process.argv[i + 1] : undefined; };
         try {
             if (!process.argv[3] || process.argv[3].startsWith("--"))
-                throw new Error("usage: openxpli start <process-id> --field X --control A --variant B [--days N]");
-            console.log(startExperiment(process.argv[3], flag("field") ?? "", flag("control") ?? "", flag("variant") ?? "", Number(flag("days") ?? 7)));
+                throw new Error("usage: openxpli start <process-id> --field X --control A --variant B [--on \"ad name\"] [--days N] [--share 0.5]");
+            console.log(startExperiment(process.argv[3], flag("field") ?? "", flag("control") ?? "", flag("variant") ?? "", Number(flag("days") ?? 7), "running", flag("share") != null ? Number(flag("share")) : undefined, flag("on"), flag("baseline") != null ? Number(flag("baseline")) : undefined, flag("unit")));
         }
         catch (e) {
             console.error(String(e instanceof Error ? e.message : e));

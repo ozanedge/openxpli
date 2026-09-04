@@ -11,8 +11,9 @@ import { enrollProcess, startExperiment } from "./enroll.js";
 import { addSource, acceptCandidate, dismissCandidate, listCandidates, maybeAnalyze, ANALYZE_MS, spawnDetachedScout } from "./scout.js";
 import { harvest } from "./harvest.js";
 import { autonomyStats, setAutonomy } from "./autonomy.js";
-import { ratifyGoal, regoal, listGoals, ratifiedGoal, parseGuardrails } from "./goals.js";
+import { ratifyGoal, regoal, alternativeGoals, ratifiedGoal, parseGuardrails, setGoalGuardrails, setPolicy } from "./goals.js";
 import { outcomeCounts, ensureOutcomesBackfilled } from "./outcomes.js";
+import { splitFor } from "./traffic.js";
 
 // Normal CDF via the Abramowitz–Stegun erf approximation.
 function phi(z: number): number {
@@ -111,7 +112,7 @@ function processes(db: ReturnType<typeof openDb>) {
     p.candidates = listCandidates(p.id as string);
     p.experiments = db.prepare(
       `SELECT e.id, e.status, e.field, e.control_value, e.variant_value, e.started_at, e.ends_at,
-              e.final_multiple, e.record_id, e.launch_note,
+              e.final_multiple, e.record_id, e.launch_note, e.share, e.goal_id, e.holdout_share, e.holdout_field, e.holdout_value, e.object, e.baseline, e.baseline_unit,
               (SELECT multiple FROM observations WHERE experiment_id = e.id AND missing = 0 ORDER BY hour DESC LIMIT 1) AS last_multiple,
               (SELECT status FROM holdouts WHERE experiment_id = e.id) AS holdout_status
        FROM experiments e WHERE e.process_id = ? ORDER BY e.started_at DESC`
@@ -121,11 +122,20 @@ function processes(db: ReturnType<typeof openDb>) {
     p.map = (db.prepare("SELECT content FROM knowledge WHERE source_id = ? AND kind = 'map'").get(p.id as string) as { content: string } | undefined)?.content ?? null;
     const g = ratifiedGoal(p.id as string);
     p.goal = g ? { ...g, guardrails: parseGuardrails(g.guardrails) } : null;
-    p.goal_options = listGoals(p.id as string).map((o) => ({ ...o, guardrails: parseGuardrails(o.guardrails) }));
+    p.goal_options = alternativeGoals(p.id as string).map((o) => ({ ...o, guardrails: parseGuardrails(o.guardrails) }));
     p.outcomes = outcomeCounts(p.id as string);
     p.experiments = (p.experiments as Record<string, unknown>[]).map((e) => ({
       ...e,
-      outcome: db.prepare("SELECT verdict, review_state, holdout_state, holdout_multiple, goal_id FROM outcomes WHERE experiment_id = ?").get(e.id as string) ?? null,
+      split: splitFor(e.id as string),
+      outcome: db.prepare(
+        `SELECT o.verdict, o.winner, o.final_multiple, o.review_state, o.reviewed_at, o.holdout_state, o.holdout_multiple,
+                o.goal_id, o.record_id, o.decided_at, g.metric AS goal_metric, g.inverse AS goal_inverse,
+                h.share AS holdout_share, h.ends_at AS holdout_ends_at
+         FROM outcomes o
+         LEFT JOIN goals g ON g.id = o.goal_id
+         LEFT JOIN holdouts h ON h.experiment_id = o.experiment_id
+         WHERE o.experiment_id = ?`
+      ).get(e.id as string) ?? null,
     }));
   }
   return procs;
@@ -156,7 +166,7 @@ export function ui(port: number, openBrowser: boolean): void {
             else if (url.pathname === "/api/extend") msg = extend(b.experiment, Number(b.days ?? 7));
             else if (url.pathname === "/api/kill") { msg = kill(b.experiment); harvest(); }
             else if (url.pathname === "/api/enroll") msg = enrollProcess(b);
-            else if (url.pathname === "/api/start") { msg = startExperiment(b.process, b.field, b.control, b.variant, Number(b.days ?? 7)); harvest(); }
+            else if (url.pathname === "/api/start") { msg = startExperiment(b.process, b.field, b.control, b.variant, Number(b.days ?? 7), "running", b.share != null ? Number(b.share) : undefined, b.object); harvest(); }
             else if (url.pathname === "/api/add") { const r = addSource(b.id, b.tool); msg = r.message; }
             else if (url.pathname === "/api/accept") { msg = acceptCandidate(b.candidate); harvest(); }
             else if (url.pathname === "/api/dismiss") msg = dismissCandidate(b.candidate);
@@ -170,6 +180,8 @@ export function ui(port: number, openBrowser: boolean): void {
             }
             else if (url.pathname === "/api/autonomy") { msg = setAutonomy(b.id, b.level); harvest(); }
             else if (url.pathname === "/api/ratify") { msg = ratifyGoal(b.goal); maybeAnalyze(); }
+            else if (url.pathname === "/api/policy") { msg = setPolicy(b.id, b.patch); }
+            else if (url.pathname === "/api/guardrails") { msg = setGoalGuardrails(b.id, b.rails); }
             else if (url.pathname === "/api/regoal") { const r = regoal(b.id); msg = `re-opened goal selection for ${b.id} — ${r.length} north stars proposed`; }
             else { res.writeHead(404); return res.end(); }
             json(res, { ok: true, message: msg });

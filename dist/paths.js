@@ -17,5 +17,26 @@ export const DEFAULT_RUN_HOURS = 168; // 7 days of hourly reads
 // Trailing regression finder: after a winner is promoted, a small share of
 // traffic stays on the old control to validate the win persists.
 export const HOLDOUT_SHARE = 0.05; // 5% stays on the old version
+// The variant's share of the traffic an experiment controls. Declared at start
+// and stored on the row, so a record says what split it ran at instead of the
+// console inferring one. Nothing verifies the tool honoured it until bindings
+// land — declared intent, same standing as HOLDOUT_SHARE.
+export const DEFAULT_VARIANT_SHARE = 0.5;
+// Three arms race and the top one wins: holdout v(current--), control
+// v(current), variant v(current++). The holdout is not a monitoring tranche any
+// more — it can win, which means reverting the previous change — so it needs
+// enough traffic to be estimated, not just watched. At 5% the holdout/control
+// comparison carries ~1.9x the standard error of the primary one and needs ~26
+// days to resolve on a 7-day cycle: it could only ever fail to lose. 20% brings
+// that to ~9 days while costing the control/variant comparison little, and caps
+// deliberate exposure to a configuration we already have evidence is worse.
+// Per-connector override: policy.holdout_share.
+export const DEFAULT_HOLDOUT_ARM_SHARE = 0.20;
+// The first experiment under a goal has no adopted change to re-test, so its
+// holdout arm carries the SAME configuration as control: an A/A arm. It should
+// read x1.00 and nothing else. If it doesn't, the measurement is lying — which
+// is worth knowing before you trust any variant result. Set 0 to run those
+// experiments on two arms instead.
+export const AA_HOLDOUT = process.env.OPENXPLI_AA_HOLDOUT !== "0";
 export const VALIDATION_HOURS = 336; // 14 days of hourly reads vs holdout
 export const REGRESS_WINDOW_HOURS = 48; // sustained-drop early-exit window

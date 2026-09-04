@@ -1,5 +1,5 @@
 import { openDb, type GoalRow, type Guardrail, type ProcessRow } from "./db.js";
-import { writeGoalRecord } from "./ledger.js";
+import { writeGoalRecord, amendRecord } from "./ledger.js";
 
 // A connector's goal is the north star it is accountable to: one metric, a
 // direction, and the guardrails that must not regress while chasing it.
@@ -25,6 +25,9 @@ const GOAL_LIB: Record<string, GoalTpl[]> = {
       "A deliberately shallow north star for a warm-up phase. Fast to move and fast to read, but easy to win without any business effect — treat it as temporary."],
   ],
   ads: [
+    ["click-through rate", 0,
+      [{ metric: "average CPC", direction: "must-not-rise" }, { metric: "conversion volume", direction: "must-not-drop" }],
+      "The fastest signal an ad account produces and the one creative actually controls — copy, image and hook all move it within a single 7-day run. Guardrail CPC and conversions, because CTR is trivially inflated by chasing cheap unqualified clicks."],
     ["cost per acquisition", 1,
       [{ metric: "conversion volume", direction: "must-not-drop" }, { metric: "daily spend", direction: "must-not-rise" }],
       "Ties the account to what a customer actually costs. Guardrailed on volume because CPA is trivially improved by simply buying less."],
@@ -83,6 +86,16 @@ export function listGoals(sourceId: string, status: string = "proposed"): GoalRo
   return openDb().prepare("SELECT * FROM goals WHERE source_id = ? AND status = ? ORDER BY id").all(sourceId, status) as GoalRow[];
 }
 
+// The north stars this connector could switch to: the runner-ups from the
+// original proposal plus anything it has been goaled to before. Keeping them
+// visible is the point — the choice of what to optimise for should stay live,
+// not evaporate the moment one is picked.
+export function alternativeGoals(sourceId: string): GoalRow[] {
+  return openDb().prepare(
+    "SELECT * FROM goals WHERE source_id = ? AND status IN ('proposed','superseded') ORDER BY status DESC, id"
+  ).all(sourceId) as GoalRow[];
+}
+
 export function ratifiedGoal(sourceId: string): GoalRow | null {
   return (openDb().prepare("SELECT * FROM goals WHERE source_id = ? AND status = 'ratified'").get(sourceId) as GoalRow | undefined) ?? null;
 }
@@ -125,7 +138,9 @@ export function ratifyGoal(goalId: string): string {
     g = db.prepare("SELECT * FROM goals WHERE id = ?").get(goalId.slice(goalId.lastIndexOf("/") + 1)) as GoalRow | undefined;
   if (!g) throw new Error(`ratify: no such goal: ${goalId}`);
   if (g.status === "ratified") throw new Error(`ratify: ${goalId} is already the ratified goal`);
-  if (g.status !== "proposed") throw new Error(`ratify: ${goalId} is ${g.status}`);
+  // A superseded goal can be ratified again — that is switching back to it.
+  if (g.status !== "proposed" && g.status !== "superseded")
+    throw new Error(`ratify: ${goalId} is ${g.status}`);
   const src = db.prepare("SELECT * FROM processes WHERE id = ?").get(g.source_id) as ProcessRow;
   const prev = ratifiedGoal(g.source_id);
 
@@ -138,7 +153,6 @@ export function ratifyGoal(goalId: string): string {
   const policy = { ...JSON.parse(src.policy || "{}"), goal_id: g.id, guardrails: parseGuardrails(g.guardrails) };
   db.transaction(() => {
     if (prev) db.prepare("UPDATE goals SET status = 'superseded' WHERE id = ?").run(prev.id);
-    db.prepare("UPDATE goals SET status = 'dismissed' WHERE source_id = ? AND status = 'proposed' AND id != ?").run(g.source_id, g.id);
     db.prepare("UPDATE goals SET status = 'ratified', ratified_at = ? WHERE id = ?").run(now, g.id);
     db.prepare("UPDATE processes SET metric = ?, inverse = ?, policy = ?, status = 'proposed' WHERE id = ?")
       .run(g.metric, g.inverse, JSON.stringify(policy), g.source_id);
@@ -161,7 +175,9 @@ export function ratifyGoal(goalId: string): string {
   const inflight = db.prepare(
     "SELECT COUNT(*) c FROM experiments WHERE process_id = ? AND status IN ('running','launching')"
   ).get(g.source_id) as { c: number };
+  const alts = alternativeGoals(g.source_id).length;
   const parts = [`goal ratified for ${g.source_id}: ${g.metric}${g.inverse ? " (lower is better)" : ""} -> ${recordId}`];
+  if (alts) parts.push(`${alts} alternative${alts === 1 ? "" : "s"} kept — switch any time with \`openxpli ratify <goal-id>\``);
   if (prev) parts.push(`supersedes ${prev.metric}`);
   if (inflight.c) parts.push(`${inflight.c} in-flight experiment(s) will finish and be reported against ${prev ? prev.metric : "their original goal"}`);
   if (demotedFrom) parts.push(`autonomy reset ${demotedFrom} -> human-gated (wins were earned against the old goal)`);
@@ -237,4 +253,38 @@ export function backfillGoals(): number {
     n++;
   }
   return n;
+}
+
+// Guardrails belong to the ratified goal, and that goal is a ledgered record.
+// Editing them amends the record rather than quietly rewriting what the
+// connector agreed to be held to.
+export function setGoalGuardrails(sourceId: string, rails: (string | Guardrail)[]): string {
+  const db = openDb();
+  const g = ratifiedGoal(sourceId);
+  if (!g) throw new Error(`guardrails: ${sourceId} has no ratified goal`);
+  const parsed: Guardrail[] = rails
+    .map((r) => (typeof r === "string" ? parseLegacyRail(r) : r))
+    .filter((r) => r.metric.trim().length > 0);
+  const before = parseGuardrails(g.guardrails);
+  db.prepare("UPDATE goals SET guardrails = ? WHERE id = ?").run(JSON.stringify(parsed), g.id);
+  const src = db.prepare("SELECT * FROM processes WHERE id = ?").get(sourceId) as ProcessRow;
+  const policy = { ...JSON.parse(src.policy || "{}"), guardrails: parsed };
+  db.prepare("UPDATE processes SET policy = ? WHERE id = ?").run(JSON.stringify(policy), sourceId);
+  if (g.record_id) {
+    const fmt = (r: Guardrail[]) => (r.length ? r.map((x) => `\`${x.metric}\` ${x.direction === "must-not-rise" ? "must not rise" : "must not drop"}`).join(", ") : "none");
+    amendRecord(g.record_id, "Guardrails changed",
+      `- **was:** ${fmt(before)}\n- **now:** ${fmt(parsed)}\n\nThe north star is unchanged; only the limits around it moved.`,
+      `${g.record_id}: guardrails changed on ${g.id}`);
+  }
+  return `${sourceId}: ${parsed.length} guardrail${parsed.length === 1 ? "" : "s"} on ${g.metric}`;
+}
+
+// Budget and brand limits are connector policy, not part of the goal record.
+export function setPolicy(sourceId: string, patch: Record<string, unknown>): string {
+  const db = openDb();
+  const src = db.prepare("SELECT * FROM processes WHERE id = ?").get(sourceId) as ProcessRow | undefined;
+  if (!src) throw new Error(`policy: no such connector: ${sourceId}`);
+  const policy = { ...JSON.parse(src.policy || "{}"), ...patch };
+  db.prepare("UPDATE processes SET policy = ? WHERE id = ?").run(JSON.stringify(policy), sourceId);
+  return `${sourceId}: ${Object.keys(patch).join(", ")} updated`;
 }

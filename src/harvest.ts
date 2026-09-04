@@ -6,7 +6,7 @@ import { maybeAnalyze } from "./scout.js";
 import { existsSync } from "node:fs";
 import { playbookFor, BROWSER_PROFILE } from "./browser-scout.js";
 import { runAutonomy } from "./autonomy.js";
-import { recordOutcome, setHoldoutState, ensureOutcomesBackfilled } from "./outcomes.js";
+import { recordOutcome, setHoldoutState, revertPreviousAdoption, ensureOutcomesBackfilled } from "./outcomes.js";
 import { writeDecisionRecord, appendValidation } from "./ledger.js";
 import {
   HEARTBEAT_PATH, HOUR_MS, DEFAULT_RUN_HOURS, ensureDirs, DATA_DIR,
@@ -53,11 +53,7 @@ export function harvest(now = Date.now()): void {
       ).get(exp.id) as { ok: number; miss: number };
       const rec = writeDecisionRecord(proc, exp, exp.final_multiple ?? 1.0, counts.ok ?? 0, counts.miss ?? 0, exp.status === "won");
       db.prepare("UPDATE experiments SET record_id = ? WHERE id = ?").run(rec, exp.id);
-      if (exp.status === "won") {
-        db.prepare(
-          "INSERT OR IGNORE INTO holdouts (experiment_id, process_id, started_at, ends_at, share, status) VALUES (?,?,?,?,?, 'validating')"
-        ).run(exp.id, exp.process_id, exp.ends_at, exp.ends_at + VALIDATION_HOURS * HOUR_MS, HOLDOUT_SHARE);
-      }
+      recordOutcome(exp, exp.status === "won" ? "variant" : "control", exp.final_multiple ?? 1.0, rec);
       console.log(`repaired: ledgered ${exp.id} (${exp.status}) -> ${rec}`);
     }
     const exps = db
@@ -74,7 +70,7 @@ export function harvest(now = Date.now()): void {
         (db.prepare("SELECT hour FROM observations WHERE experiment_id = ?").all(exp.id) as { hour: number }[]).map(r => r.hour)
       );
       const insert = db.prepare(
-        "INSERT OR IGNORE INTO observations (experiment_id, hour, ts, multiple, sigma, source, missing) VALUES (?,?,?,?,?,?,?)"
+        "INSERT OR IGNORE INTO observations (experiment_id, hour, ts, multiple, sigma, source, missing, holdout_multiple) VALUES (?,?,?,?,?,?,?,?)"
       );
 
       for (let hour = 1; hour <= dueHours; hour++) {
@@ -82,11 +78,11 @@ export function harvest(now = Date.now()): void {
         const isPast = hour < dueHours;
         const reading = (isPast && !binding.canBackfill) ? null : binding.read(exp, hour);
         if (reading) {
-          insert.run(exp.id, hour, exp.started_at + hour * HOUR_MS, reading.multiple, reading.sigma, reading.source, 0);
+          insert.run(exp.id, hour, exp.started_at + hour * HOUR_MS, reading.multiple, reading.sigma, reading.source, 0, reading.holdoutMultiple ?? null);
           filled++;
         } else {
           // Unfillable gap: recorded honestly; the stats know less, the UI shows it.
-          insert.run(exp.id, hour, exp.started_at + hour * HOUR_MS, null, null, binding.name, 1);
+          insert.run(exp.id, hour, exp.started_at + hour * HOUR_MS, null, null, binding.name, 1, null);
           gaps++;
         }
       }
@@ -94,26 +90,35 @@ export function harvest(now = Date.now()): void {
       // Finalize: 7 days elapsed -> verdict. Below or at x1.00 is never adopted.
       if (now >= exp.ends_at) {
         const last = db.prepare(
-          "SELECT multiple FROM observations WHERE experiment_id = ? AND missing = 0 ORDER BY hour DESC LIMIT 1"
-        ).get(exp.id) as { multiple: number } | undefined;
+          "SELECT multiple, holdout_multiple FROM observations WHERE experiment_id = ? AND missing = 0 ORDER BY hour DESC LIMIT 1"
+        ).get(exp.id) as { multiple: number; holdout_multiple: number | null } | undefined;
         const finalMultiple = last?.multiple ?? 1.0;
-        const status = finalMultiple > 1.0 ? "won" : "failed";
+        // Three arms race, the top one wins. Control is the reference at x1.00.
+        const hMultiple = exp.holdout_share ? (last?.holdout_multiple ?? null) : null;
+        const isAA = exp.holdout_field === exp.field && exp.holdout_value === exp.control_value;
+        const winner: "variant" | "control" | "holdout" =
+          hMultiple != null && hMultiple > finalMultiple && hMultiple > 1.0 ? "holdout"
+          : finalMultiple > 1.0 ? "variant" : "control";
+        // An A/A arm is the same configuration as control. If it "wins" there is
+        // nothing to revert — the measurement is what is wrong.
+        if (winner === "holdout" && isAA)
+          console.log(`WARNING: the A/A arm of ${exp.id} read ${hMultiple!.toFixed(3)}x against an identical control — the measurement is suspect, not the configuration`);
+        // A holdout win means the PREVIOUS adopted change did not hold: the
+        // configuration before it is beating the one we promoted.
+        const status = winner === "variant" ? "won" : "failed";
         const counts = db.prepare(
           "SELECT SUM(missing = 0) AS ok, SUM(missing = 1) AS miss FROM observations WHERE experiment_id = ?"
         ).get(exp.id) as { ok: number; miss: number };
         db.prepare("UPDATE experiments SET status = ?, final_multiple = ? WHERE id = ?").run(status, finalMultiple, exp.id);
-        const rec = writeDecisionRecord(proc, exp, finalMultiple, counts.ok ?? 0, counts.miss ?? 0);
+        const reverted = winner === "holdout" && !isAA ? revertPreviousAdoption(exp.process_id, exp.goal_id, exp.ends_at) : null;
+        const rec = writeDecisionRecord(proc, exp, finalMultiple, counts.ok ?? 0, counts.miss ?? 0, status === "won", winner, hMultiple, reverted);
         db.prepare("UPDATE experiments SET record_id = ? WHERE id = ?").run(rec, exp.id);
-        recordOutcome({ ...exp, status, final_multiple: finalMultiple }, status as "won" | "failed", finalMultiple, rec);
-        // Trailing regression finder: a won variant is promoted, but a small
-        // share stays on the old control to validate the win persists.
-        if (status === "won") {
-          db.prepare(
-            "INSERT OR IGNORE INTO holdouts (experiment_id, process_id, started_at, ends_at, share, status) VALUES (?,?,?,?,?, 'validating')"
-          ).run(exp.id, exp.process_id, exp.ends_at, exp.ends_at + VALIDATION_HOURS * HOUR_MS, HOLDOUT_SHARE);
-          console.log(`holdout opened for ${exp.id}: ${HOLDOUT_SHARE * 100}% stays on old control for ${VALIDATION_HOURS / 24}d`);
-        }
-        console.log(`finalized ${exp.id}: ${status} ${finalMultiple.toFixed(3)}x -> ledger ${rec}`);
+        recordOutcome({ ...exp, status, final_multiple: finalMultiple }, winner, finalMultiple, rec, hMultiple);
+        if (winner === "holdout")
+          console.log(`REGRESSION: holdout arm won ${exp.id} at ${hMultiple!.toFixed(3)}x — ${reverted ? `reverted ${reverted}` : "nothing adopted to revert"}`);
+        // No separate trailing holdout is opened any more: the next experiment
+        // on this goal carries a holdout arm that re-tests this adoption.
+        console.log(`finalized ${exp.id}: ${winner} wins — variant ${finalMultiple.toFixed(3)}x${hMultiple != null ? `, holdout ${hMultiple.toFixed(3)}x` : ""} -> ledger ${rec}`);
         finalized++;
       }
     }
