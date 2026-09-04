@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="155.69" height="32" viewBox="0 0 155.69 32" fill="none">
+  <g transform="scale(1.33)">
+    <g transform="translate(0 0.22)">
+      <path d="M16.494 9.808A5 5 0 1 1 7.506 9.808" stroke="#6F6F6F" stroke-width="2.1" stroke-linecap="round"/>
+      <path d="M19.281 6.71A9 9 0 1 1 9.07 3.49" stroke="#0072BE" stroke-width="2.5" stroke-linecap="butt"/>
+      <path d="M12.852 2.188L8.321 1.316L9.819 5.665Z" fill="#0072BE"/>
+      <circle cx="12" cy="12" r="2.3" fill="#1D1D1D"/>
+    </g>
+  </g>
+  <text x="44" y="24.73" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="-0.53" fill="#1D1D1D">OpenXPLI</text>
+</svg>
