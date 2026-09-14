@@ -16,39 +16,45 @@ export function splitFor(experimentId) {
     const last = db.prepare("SELECT multiple, holdout_multiple FROM observations WHERE experiment_id = ? AND missing = 0 ORDER BY hour DESC LIMIT 1").get(experimentId);
     const base = e.baseline;
     const unit = e.baseline_unit ?? null;
-    const raw = (m) => (base != null && m != null ? base * m : null);
+    // For a lower-is-better metric the multiple is a reduction, so the absolute
+    // value divides rather than multiplies. Getting this backwards would show a
+    // CPC win as a cost increase.
+    const inv = !!e.baseline_inverse;
+    const raw = (m) => (base != null && m != null ? (inv ? base / m : base * m) : null);
     const v = e.share ?? DEFAULT_VARIANT_SHARE;
     const h = e.holdout_share ?? 0;
-    const inherited = (skip) => [...promoted].filter(([f]) => !skip.includes(f)).map(([field, value]) => ({ field, value, inherited: true }));
     const isAA = e.holdout_field === e.field && e.holdout_value === e.control_value;
-    const arms = [];
-    if (h > 0 && e.holdout_field) {
-        arms.push({
-            key: "holdout", label: "holdout", share: h, shareExact: true,
-            config: isAA
-                ? [...inherited([e.field]), { field: e.field, value: e.control_value }]
-                : [
-                    { field: e.holdout_field, value: e.holdout_value ?? "" },
-                    ...inherited([e.holdout_field, e.field]),
-                    { field: e.field, value: e.control_value },
-                ],
-            note: isAA
-                ? "A/A — identical to control. Nothing has been adopted yet, so this arm re-tests the measurement: it should read ×1.00."
-                : `v(current--) — the configuration before \`${e.holdout_field}\` was adopted. If this arm wins, that change is reverted.`,
-            multiple: last?.holdout_multiple ?? null, raw: raw(last?.holdout_multiple ?? null), unit,
-        });
-    }
-    arms.push({
-        key: "control", label: "control", share: 1 - v - h, shareExact: e.share != null,
-        config: [...inherited([e.field]), { field: e.field, value: e.control_value }],
-        note: "v(current) — what is live today",
-        multiple: 1, raw: base ?? null, unit,
-    });
-    arms.push({
+    const variant = {
         key: "variant", label: "variant", share: v, shareExact: e.share != null,
-        config: [...inherited([e.field]), { field: e.field, value: e.variant_value }],
-        note: "v(current++) — the change under test",
+        diff: { field: e.field, from: e.control_value, to: e.variant_value },
+        verb: "testing", note: "v(current++)",
         multiple: last?.multiple ?? null, raw: raw(last?.multiple ?? null), unit,
-    });
+    };
+    const control = {
+        key: "control", label: "control", share: 1 - v - h, shareExact: e.share != null,
+        diff: null, verb: "live", note: "v(current) — every adopted change, unmodified",
+        multiple: 1, raw: base ?? null, unit,
+    };
+    const holdout = (h > 0 && e.holdout_field)
+        ? {
+            key: "holdout", label: "holdout", share: h, shareExact: true,
+            diff: isAA ? null : {
+                field: e.holdout_field,
+                from: promoted.get(e.holdout_field) ?? e.holdout_value ?? "",
+                to: e.holdout_value ?? "",
+            },
+            verb: isAA ? "A/A" : "rolled back",
+            note: isAA
+                ? "Identical to control. Nothing adopted yet, so this arm re-tests the measurement: it should read ×1.00."
+                : `The configuration before \`${e.holdout_field}\` was adopted. If this arm wins, that change is reverted.`,
+            multiple: last?.holdout_multiple ?? null, raw: raw(last?.holdout_multiple ?? null), unit,
+        }
+        : {
+            key: "holdout", label: "holdout", share: 0, shareExact: true,
+            diff: null, verb: "none",
+            note: "No holdout arm — this experiment predates the three-arm model.",
+            multiple: null, raw: null, unit, absent: true,
+        };
+    const arms = [variant, control, holdout];
     return arms;
 }

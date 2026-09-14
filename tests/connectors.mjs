@@ -1,0 +1,37 @@
+import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+process.env.OPENXPLI_DATA_DIR = mkdtempSync(join(tmpdir(), "openxpli-delete-"));
+const { openDb } = await import("../dist/db.js");
+const { deleteConnector } = await import("../dist/connectors.js");
+const db = openDb();
+for (const id of ["remove", "keep"])
+  db.prepare("INSERT INTO processes(id, tool, metric, created_at) VALUES (?, 'Fixture', 'CTR', 0)").run(id);
+assert.throws(() => deleteConnector("remove", false), /Confirm/);
+db.prepare("INSERT INTO learning_jobs(id, source_id, kind, status, pid, created_at, updated_at) VALUES ('job','remove','learn','running',?,0,0)").run(process.pid);
+assert.throws(() => deleteConnector("remove", true), /Cancel the browser/);
+db.prepare("UPDATE learning_jobs SET status='done'").run();
+db.prepare("INSERT INTO goals(id,source_id,metric,rationale,created_at) VALUES ('goal','remove','CTR','fixture',0)").run();
+db.prepare("INSERT INTO candidates(id,source_id,field,control_value,variant_value,metric,rationale,expected_multiple,created_at) VALUES ('candidate','remove','title','old','new','CTR','fixture',1.1,0)").run();
+db.prepare("INSERT INTO kits(id,candidate_id,process_id,goal_id,state,created_at,updated_at) VALUES ('kit','candidate','remove','goal','preparing',0,0)").run();
+assert.throws(() => deleteConnector("remove", true), /kit preparation/);
+db.prepare("UPDATE kits SET state='ready'").run();
+db.prepare("INSERT INTO experiments(id,process_id,field,control_value,variant_value,started_at,ends_at) VALUES ('exp','remove','title','old','new',0,1)").run();
+assert.throws(() => deleteConnector("remove", true), /active experiment/);
+db.prepare("UPDATE experiments SET status='won'").run();
+db.prepare("INSERT INTO holdouts(experiment_id,process_id,started_at,ends_at,share) VALUES ('exp','remove',0,1,0.2)").run();
+assert.throws(() => deleteConnector("remove", true), /holdout/);
+db.prepare("UPDATE holdouts SET status='validated'").run();
+db.prepare("INSERT INTO outcomes(experiment_id,process_id,verdict,decided_at) VALUES ('exp','remove','won',1)").run();
+db.prepare("INSERT INTO observations(experiment_id,hour,ts,source) VALUES ('exp',1,1,'fixture')").run();
+db.prepare("INSERT INTO knowledge(source_id,key,kind,content,updated_at) VALUES ('remove','map','map','fixture',0)").run();
+assert.match(deleteConnector("remove", true), /Deleted/);
+assert.equal(db.prepare("SELECT count(*) n FROM processes").get().n, 1);
+assert.ok(db.prepare("SELECT 1 FROM processes WHERE id='keep'").get());
+for (const table of ["learning_jobs","kits","goals","candidates","experiments","holdouts","outcomes","observations","knowledge"])
+  assert.equal(db.prepare(`SELECT count(*) n FROM ${table}`).get().n, 0, table);
+assert.throws(() => deleteConnector("remove", true), /No such connector/);
+assert.deepEqual(db.pragma("foreign_key_check"), []);
+db.close();
+console.log("PASS: confirmed connector deletion, active-work guards, dependent-data cleanup, and unrelated connector preservation");

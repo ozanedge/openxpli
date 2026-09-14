@@ -62,6 +62,13 @@
   .tbl { width:100%; border-collapse:collapse; font-size:12.5px; }
   .tbl th { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--text-2); font-weight:600; text-align:left; padding:12px 14px; border-bottom:2px solid var(--border-1); background:#F8F8F8; }
   .tbl td { padding:11px 14px; border-bottom:1px solid var(--border-1); }
+  .connector-menu { position:relative; text-align:left; }
+  .connector-menu summary { list-style:none; cursor:pointer; border-radius:6px; padding:4px 8px; font-size:20px; line-height:20px; text-align:center; }
+  .connector-menu summary::-webkit-details-marker { display:none; }
+  .connector-menu summary:hover, .connector-menu[open] summary { background:var(--surface-1); }
+  .connector-menu summary:focus-visible { outline:2px solid var(--azure); }
+  .connector-menu-popup { position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:170px; padding:5px; border:1px solid var(--border-2); border-radius:8px; background:var(--surface-2); box-shadow:0 4px 16px rgba(0,0,0,.12); }
+  .connector-menu-popup button { width:100%; text-align:left; white-space:nowrap; }
   .tbl tr.row { cursor:pointer; transition:background-color .2s; } 
   .tbl tr.row:hover { background:#F0F9FF; }
   .tbl tr.row.sel { background:#EAF4FE; }
@@ -169,6 +176,8 @@
   .arm.holdout .armbar i { background:#8A6100; }
   .arm.control .armbar i { background:#8A8A8A; }
   .arm.promoted .armbar i { background:#0B7A38; }
+  .arm.absent .armkey, .arm.absent .armshare, .arm.absent .armraw, .arm.absent .armmult { color:var(--border-2); }
+  .arm.absent .armbar { background:transparent; border-style:dashed; }
   .armraw { width:74px; text-align:right; font:500 13px var(--mono); color:var(--text-2); flex-shrink:0; }
   .armmult { width:66px; text-align:right; font:600 14px var(--mono); flex-shrink:0; }
   .armmult.up { color:var(--green); } .armmult.down { color:var(--scarlet); }
@@ -178,6 +187,38 @@
   .armcfg { font:12px var(--mono); display:flex; gap:6px; flex-wrap:wrap; }
   .armcfg span { background:var(--surface-1); border:1px solid var(--border-1); border-radius:4px; padding:1px 7px; }
   .armcfg span.inh { color:var(--text-2); background:transparent; border-style:dashed; }
+  .armpanes { display:flex; margin:0 14px; border:1px solid var(--border-1); border-radius:8px; overflow:hidden; background:var(--surface-2); }
+  .armpane { flex:1 1 0; min-width:0; padding:11px 14px 13px; }
+  .armsplit { width:104px; flex-shrink:0; padding:10px 12px 11px; border-right:1px solid var(--border-1); background:var(--surface-1); }
+  .asttl { font:500 9px var(--mono); letter-spacing:.09em; text-transform:uppercase; color:var(--text-2); margin-bottom:7px; }
+  .asrow + .asrow { margin-top:7px; }
+  .asrowhead { display:flex; justify-content:space-between; font:500 9px var(--mono); letter-spacing:.04em; text-transform:uppercase; color:var(--text-2); }
+  .asrowpct { color:var(--text); font-weight:600; font-size:10px; }
+  .asbar { height:4px; border-radius:2px; background:var(--border-1); margin-top:3px; overflow:hidden; }
+  .asbar i { display:block; height:100%; background:var(--azure); }
+  .asbar.control i { background:#8A8A8A; }
+  .asbar.holdout i { background:#8A6100; }
+  .swhead { display:flex; align-items:center; gap:8px; padding:0 14px; }
+  .holdbtn { padding:2px 9px; font-size:10.5px; font-family:var(--mono); letter-spacing:.03em; }
+  .holdbtn.brewing { border-color:#E8CF9A; background:#FFF4DE; color:#8A6100; }
+  .holdbtn.on { background:var(--text); color:#fff; border-color:var(--text); }
+  .armpane.right { border-left:1px solid var(--border-1); background:#FBFDFF; }
+  .apanehead { display:flex; align-items:baseline; gap:9px; }
+  .apaneshare { font:600 12px var(--mono); color:var(--text-2); }
+  .apaneval { margin-top:9px; font:13px/1.5 var(--mono); word-break:break-word; }
+  .armpane.left .apaneval { color:var(--text-2); }
+  .armpane.right .apaneval { color:var(--text); font-weight:500; }
+  .hstrip { display:flex; align-items:center; gap:9px; margin:9px 14px 0; padding:9px 14px; border:1px solid var(--border-1); border-radius:8px; background:var(--surface-1); }
+  .hstrip.absent .armkey, .hstrip.absent .apaneshare { color:var(--border-2); }
+  .hval { font:12.5px var(--mono); color:var(--text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .dline { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .dverb { font:500 9.5px var(--mono); letter-spacing:.06em; text-transform:uppercase; padding:2px 7px; border-radius:4px; background:var(--surface-1); color:var(--text-2); flex-shrink:0; }
+  .dverb.variant { background:#E4F2FE; color:var(--azure-deep); }
+  .dverb.holdout { background:#FFF4DE; color:#8A6100; }
+  .dfield { font:500 11.5px var(--mono); color:var(--text-2); flex-shrink:0; }
+  .dval { font:12.5px var(--mono); background:var(--surface-1); border:1px solid var(--border-1); border-radius:4px; padding:2px 8px; }
+  .darrow { color:var(--text-2); font-size:13px; }
+  .dline .dval:first-of-type { color:var(--text-2); }
   .tl { position:relative; height:18px; margin:3px 0; }
   .tlbar { position:absolute; height:8px; top:5px; border-radius:4px; }
   .tlbar.run { background:var(--azure); }
@@ -213,6 +254,34 @@
   .explist { border:1px solid var(--border-1); border-radius:8px; background:var(--surface-2); margin-top:8px; }
   .expgroup { margin-top:12px; }
   .expgrouphead { display:flex; align-items:center; gap:8px; padding:0 2px; }
+  .exphead { padding:7px 14px 6px; background:var(--surface-1); border-bottom:1px solid var(--border-1); }
+  .exphead .rawcell, .exphead .winnercell, .exphead .valuecell { font:500 9.5px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--text-2); }
+  .adtotal { display:flex; align-items:baseline; gap:8px; padding:12px 16px; border-bottom:1px solid var(--border-1); background:#F4FBF7; flex-wrap:wrap; }
+  .adbanked { font:700 24px var(--font); letter-spacing:-0.02em; color:var(--green); }
+  .adrow { display:flex; align-items:flex-start; gap:14px; padding:11px 16px; }
+  .adrow + .adrow { border-top:1px solid var(--border-1); }
+  .adrow.dead { background:var(--surface-1); }
+  .adfield { width:132px; flex-shrink:0; font:500 11.5px var(--mono); color:var(--text-2); padding-top:1px; }
+  .adval { font:12.5px/1.5 var(--mono); word-break:break-word; }
+  .adrow.dead .adval { color:var(--text-2); text-decoration:line-through; text-decoration-color:var(--border-2); }
+  .admark { color:#8A6100; font-weight:600; }
+  .admult { width:64px; flex-shrink:0; text-align:right; font:600 13px var(--mono); color:var(--text-2); }
+  .admult.live { color:var(--green); }
+  .advalue { width:104px; flex-shrink:0; text-align:right; font:700 16px var(--font); color:var(--green); }
+  .advalue.dead { color:var(--border-2); }
+  .bankedcell { font:700 14px var(--font); letter-spacing:-0.01em; color:var(--green); white-space:nowrap; }
+  .pwr { color:var(--azure-deep); border-bottom:1px dotted var(--border-2); cursor:help; }
+  .bankedchip { font:12px var(--font); color:var(--text-2); }
+  .bankedchip b { font:700 14px var(--font); color:var(--green); letter-spacing:-0.01em; }
+  .valueamt.gone { color:var(--border-2); text-decoration:line-through; text-decoration-color:var(--border-2); }
+  .adnot { font:500 9px var(--mono); letter-spacing:.05em; text-transform:uppercase; color:var(--text-2); margin-top:1px; }
+  .valuecell { width:132px; flex-shrink:0; text-align:right; }
+  .valuelab { font:500 9.5px var(--mono); letter-spacing:.05em; text-transform:uppercase; color:var(--text-2); white-space:nowrap; }
+  .valueamt { font:700 19px var(--font); white-space:nowrap; letter-spacing:-0.02em; margin-top:1px; }
+  .valueamt.good { color:var(--green); } .valueamt.none { color:var(--border-2); font-weight:600; }
+  .peryr { font-size:11px; font-weight:500; color:var(--text-2); margin-left:1px; }
+  .valuebox { border:1px solid #BFE4CD; background:#F4FBF7; border-radius:8px; padding:12px 14px; margin-top:10px; }
+  .valuebox.unset { border-color:var(--border-1); background:var(--surface-1); }
   .rawcell { width:112px; flex-shrink:0; text-align:right; }
   .rawlab { font:500 9.5px var(--mono); letter-spacing:.05em; text-transform:uppercase; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rawval { font:600 15px var(--mono); margin-top:1px; color:var(--text); }
@@ -247,6 +316,31 @@
   .b-running { background:#EFECFF; color:#5B3FD6; }
   .b-rolledback { background:#FFF4DE; color:#8A6100; }
   .b-choose { background:#E4F2FE; color:var(--azure-deep); }
+
+  .learning-card { display:flex; gap:16px; align-items:center; padding:14px 0; flex-wrap:wrap; }
+  .kit-card { margin:14px 0; border:1px solid var(--border-2); border-radius:12px; background:var(--surface-1); overflow:hidden; }
+  .kit-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; text-align:left; padding:18px 22px; background:var(--surface-2); border:0; color:var(--text); font:14px var(--font); cursor:pointer; }
+  .kit-body { padding:8px 24px 24px; font-size:13px; line-height:1.65; }
+  .kit-columns,.kit-instructions { display:grid; grid-template-columns:1fr 1fr; gap:28px; margin-top:24px; }
+  .kit-label { font-size:10px; text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:var(--text-2); margin-bottom:9px; }
+  .kit-image { aspect-ratio:3/2; display:flex; align-items:center; justify-content:center; background:var(--surface-2); border:1px solid var(--border-1); border-radius:10px; overflow:hidden; }
+  .kit-image img { width:100%; height:100%; object-fit:contain; }
+  .kit-image>div { padding:28px; text-align:center; }
+  .kit-change { padding:16px; border-left:3px solid var(--azure); background:var(--surface-2); border-radius:6px; overflow-wrap:anywhere; }
+  .kit-change p { margin:4px 0 14px; }
+  .kit-field { display:flex; gap:12px; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border-1); overflow-wrap:anywhere; }
+  .kit-field p { margin:4px 0 0; }
+  .kit-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .kit-actions a { text-decoration:none; }
+  .kit-footer { margin-top:22px; padding-top:18px; border-top:1px solid var(--border-1); }
+  .kit-instructions h3 { font-size:14px; margin:0; }
+  .kit-instructions ol,.kit-instructions ul { padding-left:20px; }
+  .kit-instructions li { margin-bottom:10px; }
+  .kit-alert { background:#fff4dc; color:#704c00; padding:12px; border-radius:7px; margin:12px 0; }
+  .kit-wait { padding:20px; color:var(--text-2); }
+  .kit-brief { margin-top:18px; overflow-wrap:anywhere; }
+  .kit-brief summary { cursor:pointer; color:var(--text-2); }
+  @media(max-width:850px){ .kit-columns,.kit-instructions{grid-template-columns:1fr} .kit-body{padding:10px 14px} .kit-heading{flex-wrap:wrap} }
 </style>
 </head>
 <body>
@@ -282,7 +376,7 @@
 
   <main id="view-processes">
     <div class="headrow">
-      <h1>Connectors</h1><span class="sub">Every connector initializes safely in shadow mode with read-only permissions. OpenXPLI analyzes it and suggests experiments; you start the ones worth running.</span>
+      <h1>Connectors</h1><span class="sub">Learn your account. Prepare an experiment kit. Review the copy, image and instructions, then launch it yourself.</span>
       <span class="headtools">
         <input id="proc-search" placeholder="Filter connectors…" oninput="renderProcesses(window.__procs||[])">
         <button class="btn primary" onclick="openConnectors()">Add connector</button>
@@ -392,6 +486,13 @@ function renderChart(exps){
     const run = e.series.filter(o => o.phase === "run" && o.multiple != null);
     const hold = e.series.filter(o => o.phase === "holdout" && o.multiple != null);
     const pts = arr => arr.map(o => `${x(e.started_at + o.hour*3600000).toFixed(1)},${y(o.multiple).toFixed(1)}`).join(" ");
+    // The holdout arm rides the same hours as the run. It is a reference, not a
+    // result, so it stays grey and dotted and sits behind the coloured series.
+    const holdArm = e.series.filter(o => o.phase === "run" && o.holdout_multiple != null);
+    if (holdArm.length) {
+      const hp = holdArm.map(o => `${x(e.started_at + o.hour*3600000).toFixed(1)},${y(o.holdout_multiple).toFixed(1)}`).join(" ");
+      g += `<polyline points="${hp}" fill="none" stroke="#B4B4B4" stroke-width="1.1" stroke-dasharray="1.5 3" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+    }
     // ±3σ envelope after hour 24 (the confidence funnel), pinched at the end
     const band = run.filter(o => o.hour > 24 && o.sigma != null);
     if (band.length > 2) {
@@ -477,7 +578,7 @@ function renderModal(){
       <div><span class="lbl">A · Control</span><div style="margin-top:6px;font-size:13px">${e.control_value}</div><div class="sub">unchanged</div><div class="big">1.00×</div><div class="sub">baseline</div></div>
       <div class="exp"><span class="lbl">B · Experiment</span><div style="margin-top:6px;font-size:13px">${e.variant_value}</div><div class="sub">single mutation</div>
         <div class="big ${m>1?"good":"bad"}">${m==null?"—":fmtX(m)}</div>
-        <div class="sub">${running ? `current · day ${dayN} of ${Math.round(e.run_hours/24)}` : e.status === "won" ? "final · variant adopted" : "final · reverted, not adopted"}</div></div>
+        <div class="sub">${running ? `current · day ${dayN} of ${Math.round(e.run_hours/24)}` : e.status === "won" ? "final · variant won" : "final · reverted, not adopted"}</div></div>
     </div>
     <div class="mut">${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
     <div class="stat4">
@@ -507,7 +608,7 @@ function reviewOpen(){
 const VIEWS = ["processes","experiments","ledger"];
 const LABELS = { experiments:"Experimentation", processes:"Connectors", ledger:"Events" };
 const CATALOG = [
-  ["ChatGPT Ads","ads-openai","Clone campaigns, tune bids and creative in ads.openai.com","https://ads.openai.com"],
+  ["ChatGPT Ads","ads-openai","Learn your ads and prepare copy, images and manual experiment kits","https://ads.openai.com"],
   ["Klaviyo","klaviyo","Flows, campaigns, subject lines and send times","https://www.klaviyo.com/login"],
   ["Mailchimp","mailchimp","Campaign copy, audiences and send schedules","https://login.mailchimp.com"],
   ["HubSpot","hubspot","Sequences, lead routing and follow-up timing","https://app.hubspot.com/login"],
@@ -517,18 +618,41 @@ const CATALOG = [
 ];
 let view = "processes", selProc = null, selRec = null;
 function renderTabs(){
-  document.getElementById("tabs").innerHTML = VIEWS.map(v =>
-    `<button class="${v===view?"on":""}" onclick="setView('${v}')">${LABELS[v]}</button>`).join("");
+  setHTML(document.getElementById("tabs"), VIEWS.map(v =>
+    `<button class="${v===view?"on":""}" onclick="setView('${v}')">${LABELS[v]}</button>`).join(""));
   for (const v of VIEWS) document.getElementById("view-"+v).style.display = v===view ? "" : "none";
 }
 function setView(v){ view = v; refresh(); }
 
 // ── connectors view ──
+// The connectors view re-renders on a 2s poll while a sign-in or a kit is in
+// flight. Rewriting byte-identical HTML still tears down the subtree: CSS
+// animations restart, hover and keyboard focus are lost, and the browser
+// repaints — which is what reads as a glitch. Nearly every poll produces the
+// same markup, so write only when it actually changed, and put focus back when
+// a write is unavoidable.
+function setHTML(el, html){
+  if (!el || el.__lastHTML === html) return false;
+  const active = document.activeElement;
+  const inside = active && el.contains(active) ? active : null;
+  const focusId = inside?.id || null;
+  const focusAction = inside?.getAttribute?.("data-kit-action") || null;
+  const focusConn = inside?.getAttribute?.("data-connector") || null;
+  el.__lastHTML = html;
+  el.innerHTML = html;
+  if (focusId || focusAction){
+    const sel = focusId ? `#${CSS.escape(focusId)}`
+      : `[data-kit-action="${CSS.escape(focusAction)}"]` + (focusConn ? `[data-connector="${CSS.escape(focusConn)}"]` : "");
+    el.querySelector(sel)?.focus();
+  }
+  return true;
+}
+
 function renderProcesses(all){
   window.__stages = window.__stages || {};
   for (const p of all){
     const st = stageOf(p), prev = window.__stages[p.id];
-    if (prev != null && st > prev) celebrate(p, prev, st);
+    if (prev != null && st > prev && st === 6) toast("<b>Manual launch recorded.</b> Your confirmation is saved with the kit.");
     window.__stages[p.id] = st;
   }
   window.__procs = all;
@@ -536,15 +660,17 @@ function renderProcesses(all){
   const procs = q ? all.filter(p => (p.id + " " + p.tool + " " + p.metric + " " + (p.goal ? p.goal.metric : "")).toLowerCase().includes(q)) : all;
   if (window.__procInit == null && procs.length){ selProc = procs[0].id; window.__procInit = 1; }
   if (selProc != null && !procs.some(p => p.id === selProc)) selProc = null;
-  const fmtWhen = ts => ts ? new Date(ts).toISOString().slice(0,10) : "—";
-  document.getElementById("proc-table").innerHTML =
-    `<tr><th>Connector</th><th>Tool</th><th>Goal</th><th>Status</th><th>Autonomy</th><th>Updated</th></tr>` +
+  const rows =
+    `<tr><th>Connector</th><th>Tool</th><th>Goal</th><th>Status</th><th>Execution</th><th style="text-align:right">Active annualized value</th><th aria-label="Connector actions" style="width:44px"></th></tr>` +
     procs.map(p => {
       const sel = p.id === selProc;
       // A live run outranks the connector's stored status, which lags behind it.
       const oc = p.outcomes || {};
       const exps = (p.experiments||[]).filter(e => e.status === "running" || e.status === "launching").length;
-      const st = p.status === "shadow" ? ["learning","analyzing pulsing"]
+      const st = p.kits?.some(k => ["queued","preparing"].includes(k.state)) ? ["preparing kit","analyzing pulsing"]
+        : p.kits?.some(k => ["ready","needs-input"].includes(k.state)) ? ["review kit","choose"]
+        : p.kits?.some(k => k.state === "launched") ? ["manual launch recorded","validated"]
+        : p.status === "shadow" ? ["learning","analyzing pulsing"]
         : p.status === "goal" ? ["set goal","choose"]
         : p.status === "reverted" ? ["reverted","rolledback"]
         : (p.latest?.status === "running" || p.latest?.status === "launching") ? [`${exps} experiment${exps===1?"":"s"} running`,"running"]
@@ -552,15 +678,18 @@ function renderProcesses(all){
         : oc.validating ? ["in holdout","analyzing"]
         : p.status === "proposed" ? ["choose experiment","choose"]
         : ["running","validated"];
-      const row = `<tr class="row ${sel?"sel":""}" onclick="selectProc('${p.id}')">
+      const row = `<tr class="row ${sel?"sel":""}" onclick="if (!event.target.closest('.connector-menu')) selectProc('${p.id}')">
         <td class="mono"><span class="chev">▸</span>${p.id}</td><td>${p.tool}</td>
         <td>${p.goal ? `${p.goal.metric}${p.goal.inverse ? ' <span class="sub">↓</span>' : ""}` : `<span class="sub">not set</span>`}</td>
         <td><span class="badge b-${st[1]}">${st[0]}</span></td>
-        <td>${p.autonomy}</td>
-        <td class="mono">${fmtWhen(p.latest?.updated)}</td></tr>`;
-      return row + (sel ? `<tr class="detailrow"><td colspan="6"><div class="procpanel">
+        <td>Manual launch</td>
+        <td style="text-align:right">${p.adopted && p.adopted.activeAnnualValue > 0
+          ? `<span class="bankedcell">${fmtMoney(p.adopted.activeAnnualValue)}<span class="peryr">/yr</span></span>`
+          : `<span class="sub">—</span>`}</td>
+        <td><details class="connector-menu"><summary aria-label="Actions for ${esc(p.id)}">⋯</summary><div class="connector-menu-popup"><button class="btn ghost" data-kit-action="delete-connector" data-connector="${esc(p.id)}">Delete connector</button></div></details></td></tr>`;
+      return row + (sel ? `<tr class="detailrow"><td colspan="7"><div class="procpanel">
         <div class="phead"><span class="chev" style="transform:rotate(90deg);color:var(--azure-deep)">▸</span>
-          <span class="pid">${p.id}</span><span class="cchip">${p.tool}</span><span class="cchip">${p.autonomy}</span>
+          <span class="pid">${p.id}</span><span class="cchip">${p.tool}</span><span class="cchip">Manual launch</span>
           <span style="flex:1"></span>
           ${p.map ? `<button class="btn ghost" style="padding:3px 10px" onclick="event.stopPropagation();openKnowledge('${p.id}')">ⓘ Connector knowledge</button>` : ""}
           <button class="btn ghost" style="padding:3px 10px" onclick="event.stopPropagation();selProc=null;renderProcesses(window.__procs||[])">✕ Close</button>
@@ -568,8 +697,8 @@ function renderProcesses(all){
         <div class="pbody">${procDetail(p)}</div>
       </div></td></tr>` : "");
     }).join("");
-  if (!procs.length) document.getElementById("proc-table").innerHTML +=
-    `<tr><td colspan="6" style="padding:18px" class="sub">No connectors yet — Add Connector to begin.</td></tr>`;
+  setHTML(document.getElementById("proc-table"), rows + (procs.length ? ""
+    : `<tr><td colspan="7" style="padding:18px" class="sub">No connectors yet — Add Connector to begin.</td></tr>`));
 }
 const OPENXPLI_SVG = `<svg class="jr" viewBox="0 0 60 60">
   <defs><linearGradient id="jrg" x1="30" y1="5" x2="54.6" y2="34.3" gradientUnits="userSpaceOnUse">
@@ -584,77 +713,41 @@ const OPENXPLI_SVG = `<svg class="jr" viewBox="0 0 60 60">
   </g>
 </svg>`;
 function stageOf(p){
-  const oc = p.outcomes || {};
-  if (p.autonomy === "auto-merge") return 8;
-  if (p.autonomy === "auto-start") return 7;
-  if (oc.open || oc.validating) return 6;      // a verdict is in, awaiting review or holdout
-  if (oc.resolved) return 6;
-  if (p.latest && (p.latest.status === "running" || p.latest.status === "launching")) return 5;
-  if (p.status === "proposed") return 4;
+  if (p.kits?.some(k => k.state === "launched")) return 6;
+  if (p.kits?.length) return 5;
+  if (p.goal) return 4;
   if (p.status === "goal") return 3;
-  return 1;
+  return 2;
 }
 function stepper(p){
-  const st = stageOf(p);
-  const auto = p.autonomy === "auto-start" || p.autonomy === "auto-merge";
-  const oc = p.outcomes || {};
-  const steps = [
-    ["Connected","read-only"], ["Learning","analyzing the connector"],
-    ["Set goal","what we optimize for"],
-    ["Choose experiment","top 3 against the goal"], ["Experiment running","hourly reads vs control"],
-    ["Results & outcome","verdict, review, holdout"],
-    ["Self-starting","starts its own experiments"], ["Autonomous","merges winners, keeps iterating"],
-  ];
-  // done: everything below the current rung; steady autonomy rungs show as active
-  const doneN = p.autonomy === "auto-merge" ? 8 : p.autonomy === "auto-start" ? 7
-    : (oc.resolved && !oc.open && !oc.validating) ? 6
-    : (p.latest && p.latest.status !== "running" && p.latest.status !== "launching") ? 5 : Math.max(1, st - 1);
-  const act = auto ? (p.autonomy === "auto-merge" ? 8 : 7)
-    : (oc.open || oc.validating) ? 6
-    : (p.latest && (p.latest.status === "running" || p.latest.status === "launching")) ? 5
-    : p.status === "shadow" ? 2 : p.status === "goal" ? 3 : p.status === "proposed" ? 4 : 0;
-  // Anything before the active rung is, by definition, behind us.
-  const done = Math.max(doneN, act - 1);
-  const fill = ((Math.max(done, act) - 1) / (steps.length - 1)) * 100;   // land exactly on node centers
-  return `<div class="journey">
-    <div class="jrail"></div>
-    <div class="jfill" style="width:calc((100% - 98px) * ${Math.min(100,fill)/100})"></div>
-    <div class="jsteps">${steps.map(([lbl, sub], i) => {
-      const n = i + 1;
-      const isDone = n <= done && n !== act;
-      const now = n === act;
-      return `<span class="jstep ${isDone?"done":""} ${now?"now":""}">
-        <span class="jnode">${isDone ? "✓" : n}${now ? OPENXPLI_SVG : ""}</span>
-        <span class="jlbl">${lbl}</span><span class="jsub">${sub}</span>
-      </span>`;
-    }).join("")}</div></div>`;
+  const current = stageOf(p);
+  const steps = [["Connected","browser access"],["Learn","read the current state"],["Set goal","choose what matters"],["Choose a test","one variable"],["Review your kit","copy, image, instructions"],["Launch yourself","you stay in control"]];
+  return `<div class="journey"><div class="jrail"></div><div class="jfill" style="width:calc((100% - 98px) * ${(current-1)/5})"></div><div class="jsteps">${steps.map(([label,sub],i)=>`<span class="jstep ${i+1<current?"done":""} ${i+1===current?"now":""}"><span class="jnode">${i+1<current?"✓":i+1}</span><span class="jlbl">${label}</span><span class="jsub">${sub}</span></span>`).join("")}</div></div>`;
+}
+function learningCard(p){
+  if (!p.can_learn) return `<div class="sect sub">Browser learning for this connector is not available yet. Account-specific kits require browser observations.</div>`;
+  const l = p.learning, busy = !!l?.active;
+  const waiting = busy && l?.state === "waiting-browser";
+  const signing = busy && l?.kind === "signin" && l?.state === "signin";
+  const title = l?.cancel_requested ? "Stopping browser task" : l?.continue_requested && busy ? "Finishing sign-in" : l?.state === "verification-blocked" ? "Site verification blocked learning" : l?.state === "browser-busy" ? "Browser in use — retry needed" : waiting ? "Waiting for browser" : signing ? "Finish signing in" : l?.state === "ready" ? "Account learned" : busy ? "Learning your account" : "Learn the current account";
+  const legacyBusy = /ProcessSingleton|profile.*in use/i.test(l?.message || "");
+  const message = legacyBusy ? "The saved browser session was busy. Close the old OpenXPLI sign-in window, then retry learning. Your regular Chrome windows can stay open."
+    : l?.message || "Sign in once, then read the account to ground your copy, images and instructions.";
+  return `<div class="sect learning-card"><div style="flex:1"><b>${title}</b><div class="sub">${esc(message)}</div>${l?.state === "ready" ? `<div class="sub">Observed ${new Date(l.at).toLocaleString()}. Refresh observations if the account changed.</div>` : ""}</div><div class="kit-actions">
+    ${signing ? `<button class="btn primary" data-kit-action="continue-signin" data-connector="${esc(p.id)}" ${l.continue_requested || l.cancel_requested ? "disabled" : ""}>I’m signed in — continue</button>` : ""}
+    ${busy ? `<button class="btn" data-kit-action="cancel-learning" data-connector="${esc(p.id)}" ${l.cancel_requested?"disabled":""}>${l.cancel_requested?"Stopping…":"Cancel browser task"}</button>` : `<button class="btn" data-kit-action="signin" data-connector="${esc(p.id)}">Sign in with Chrome</button><button class="btn primary" data-kit-action="learn" data-connector="${esc(p.id)}">${l && l.state!=="ready"?"Retry learning":"Learn account"}</button>`}
+  </div></div>`;
 }
 function procDetail(p){
-  const analyzing = p.status === "shadow";
-  const window_ = Math.max(1, (p.analyze_eta ?? 0) - (p.created_at ?? 0));
-  const pct = Math.min(99, Math.max(3, Math.round((1 - ((p.analyze_eta ?? 0) - Date.now()) / window_) * 100)));
-  const C = 2 * Math.PI * 22;
-  const analyzeNote = analyzing ? `
-    <div class="sect analyzing-card" style="margin-top:12px">
-      <div class="ringwrap">
-        <svg width="52" height="52"><circle cx="26" cy="26" r="22" fill="none" stroke="var(--border-1)" stroke-width="4"/>
-        <circle cx="26" cy="26" r="22" fill="none" stroke="var(--azure)" stroke-width="4" stroke-linecap="round"
-          stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct/100)}" style="transition:stroke-dashoffset 1s linear"/></svg>
-        <span class="ringpct">${pct}%</span>
-      </div>
-      <div>
-        <div style="font-weight:600;font-size:13px" id="analyzemsg-${cssId(p.id)}">${analyzeMsg(p)}</div>
-        <div class="sub" style="margin-top:3px">Shadow mode — read-only. Nothing is being changed in ${p.tool}.</div>
-      </div>
-    </div>` : "";
   const cands = expListSect(p);
   return `
     ${stepper(p)}
-    ${analyzeNote}
+    ${learningCard(p)}
     <div class="halves">
       <div class="half">${goalSect(p)}</div>
       <div class="half">${guardrailsSect(p)}</div>
     </div>
+    ${kitSection(p)}
     ${cands}`;
 }
 // Only states that say something the winner column does not. "no-change" is
@@ -693,7 +786,7 @@ function goalSect(p){
         ${rails.length ? rails.map(railChip).join("") : `<span class="sub">none declared</span>`}
         <button class="btn ghost gedit" onclick="event.stopPropagation();editRails('${p.id}')">Edit</button>
       </div>
-      <div class="goalnote">Every experiment on this connector measures <b>${g.metric}</b>. Starting an experiment cannot change that — only ratifying a new goal can, and that resets earned autonomy.${rails.length ? " Guardrails are checked at review; they are not read automatically yet." : ""}</div>
+      <div class="goalnote">Every kit on this connector targets <b>${g.metric}</b>. Review this goal before preparing your experiment.${rails.length ? " Review these guardrails yourself before launch; they are not measured automatically." : ""}</div>
     </div>
     ${alts.length ? `<div class="altwrap">
       <div class="plabel" style="margin-bottom:7px">Alternatives — switch the north star</div>
@@ -808,7 +901,7 @@ const F = (id, label, ph, extra="") => `<label style="font-size:11px;letter-spac
 function val(id){ return document.getElementById(id).value.trim(); }
 const TA = (id, label, ph, value="", rows=6) => `<label style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);font-weight:500">${label}
   <textarea id="${id}" rows="${rows}" placeholder="${ph}" style="display:block;width:100%;margin-top:4px;border:1px solid var(--border-2);border-radius:6px;padding:8px 10px;font:12.5px/1.55 var(--font);background:var(--surface-2);resize:vertical">${value}</textarea></label>`;
-const esc = t => String(t == null ? "" : t).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const esc = t => String(t == null ? "" : t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 
 async function openConnectors(){
   const procs = await j("/api/processes");
@@ -870,7 +963,7 @@ function openEnroll(){
       <select id="f-autonomy" style="display:block;width:100%;margin-top:4px;border:1px solid var(--border-2);border-radius:6px;padding:7px 10px;font:12.5px var(--font);background:var(--surface-2)">
         <option value="shadow" selected>shadow (observe & propose only)</option>
         <option value="human-gated">human-gated</option>
-        <option value="auto-merge">auto-merge</option></select></label>`,
+        </select></label>`,
     F("f-guardrails","Guardrails (semicolon-separated)","unsubscribes must not rise; deliverability > 98%"),
     F("f-blast","Blast radius","$250/day spend cap"),
   ].join(""), "Enroll", async () => {
@@ -885,31 +978,45 @@ function openEnroll(){
   });
 }
 function outcomePanel(e){
+  const av = e.annual_value;
   const o = e.outcome, d10 = ts => ts ? new Date(ts).toISOString().slice(0,10) : "—";
   const rb = (o.review_state in REVIEW_BADGE ? REVIEW_BADGE[o.review_state] : [o.review_state,"open"]);
   const isAA = e.holdout_field === e.field && e.holdout_value === e.control_value;
-  const rows = [];
-  if (o.holdout_multiple != null)
-    rows.push(["holdout", isAA ? `${e.field}: ${e.control_value}` : `${e.holdout_field}: ${e.holdout_value}`,
-               o.holdout_multiple, isAA ? "A/A" : "previous"]);
-  rows.push(["control", `${e.field}: ${e.control_value}`, 1, "reference"]);
-  rows.push(["variant", `${e.field}: ${e.variant_value}`, o.final_multiple, "the change"]);
+  // Same fixed order as the arms panel: variant, control, holdout — newest
+  // change first, the reference beneath it, the arm being re-tested last.
+  const rows = [
+    ["variant", `${e.field}: ${e.variant_value}`, o.final_multiple, "the change"],
+    ["control", `${e.field}: ${e.control_value}`, 1, "reference"],
+    o.holdout_multiple != null
+      ? ["holdout", isAA ? `${e.field}: ${e.control_value}` : `${e.holdout_field}: ${e.holdout_value}`,
+         o.holdout_multiple, isAA ? "A/A" : "previous"]
+      : ["holdout", "none — nothing adopted to re-test", null, "not run"],
+  ];
   return `<div class="outcomepanel">
     <div class="plabel">Outcome</div>
     <table class="otbl">
       <tr><th>arm</th><th>configuration</th><th style="text-align:right">${o.goal_metric || "result"}</th><th style="text-align:right">vs control</th><th></th></tr>
       ${rows.map(([arm, cfg, mult, kind]) => {
-        const rawV = e.baseline != null && mult != null ? e.baseline * mult : null;
+        const rawV = e.baseline == null || mult == null ? null
+          : (e.baseline_inverse ? e.baseline / mult : e.baseline * mult);
         const won = (o.winner || (o.verdict === "won" ? "variant" : "control")) === arm;
         return `<tr class="${won?"win":""}">
           <td class="mono"><b>${arm}</b></td>
           <td class="mono" style="color:var(--text-2)">${cfg}</td>
-          <td class="mono" style="text-align:right;font-weight:600">${fmtRaw(rawV, e.baseline_unit)}</td>
-          <td class="mono" style="text-align:right;font-weight:600;${mult==null?"":mult>1?"color:var(--green)":mult<1?"color:var(--scarlet)":""}">${mult==null?"—":fmtX(mult)}</td>
+          <td class="mono" style="text-align:right;font-weight:600;${mult==null?"color:var(--text-2)":""}">${mult==null?"N/A":fmtRaw(rawV, e.baseline_unit)}</td>
+          <td class="mono" style="text-align:right;font-weight:600;${mult==null?"color:var(--text-2)":mult>1?"color:var(--green)":mult<1?"color:var(--scarlet)":""}">${mult==null?"N/A":fmtX(mult)}</td>
           <td style="font-size:11px;color:var(--text-2)">${won ? `<b style="color:var(--text)">won</b>` : kind}</td>
         </tr>`;
       }).join("")}
     </table>
+    ${av && av.kind !== "none" ? `<div class="valuebox">
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+        <span class="valueamt good" style="font-size:22px">${fmtMoney(av.amount)}<span class="peryr">/yr</span></span>
+        <span class="plabel">${e.value_state === "active" ? "Active estimate" : e.value_state === "potential" ? "Potential · awaiting approval" : "Historical estimate"} · ${VALUE_LABEL[av.kind]}</span>
+      </div>
+      <div class="sub" style="margin-top:6px;font-size:11.5px;line-height:1.55"><b>How:</b> ${av.formula}</div>
+      <div class="sub" style="margin-top:3px;font-size:11.5px;line-height:1.55"><b>Basis:</b> ${av.basis}. These are declared inputs, not measurements — change them in the value model.</div>
+    </div>` : av ? `<div class="valuebox unset"><div class="sub" style="font-size:11.5px">${av.formula}</div></div>` : ""}
     <div class="sub" style="margin-top:10px;font-size:11.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       ${rb ? `<span class="badge b-${rb[1]}" style="margin-left:0">${rb[0]}</span>` : ""}
       <span>decided ${d10(o.decided_at)}</span>
@@ -918,7 +1025,7 @@ function outcomePanel(e){
       ${o.winner === "holdout" && !isAA ? `<span style="color:#8A6100">· the previously adopted change was reverted — the regression finder working as designed</span>` : ""}
       ${o.winner === "holdout" && isAA ? `<span style="color:var(--scarlet)">· the A/A arm beat an identical control — measurement is suspect</span>` : ""}
     </div>
-    ${splitRows(e.split)}
+    ${splitRows(e.split, e.id)}
   </div>`;
 }
 function guardCard(title, value, sub, body, tone, edit, rawBtn){
@@ -937,46 +1044,24 @@ const AUTONOMY_COPY = {
   "auto-merge": ["Runs the whole loop: starts, merges winners, iterates. Every action ledgered and revertible.", "warnTone"],
 };
 function guardrailsSect(p){
-  const a = p.autonomy_stats || {}, pol = p.policy || {};
-  const LADDER = ["shadow","human-gated","auto-start","auto-merge"];
-  const at = LADDER.indexOf(p.autonomy);
-  const copy = AUTONOMY_COPY[p.autonomy] || ["",""];
-  const rungs = `<div class="gladder">${LADDER.map((l,i) => `<span class="grung ${i<=at?"on":""}" title="${l}"></span>`).join("")}
-    <span class="mono" style="font-size:10px;color:var(--text-2);margin-left:6px">${at+1}/4</span></div>`;
-  // Autonomy gets the same control slot as the other cards, but it is EARNED —
-  // so the button is present and disabled until the wins exist, rather than absent.
-  const NEXT = { shadow: "human-gated", "human-gated": "auto-start", "auto-start": "auto-merge", "auto-merge": null };
-  const next = NEXT[p.autonomy];
-  const canPromote = next === "human-gated" ? true
-    : next === "auto-start" ? !!a.eligibleStart
-    : next === "auto-merge" ? !!a.eligibleMerge : false;
-  const needed = next === "auto-start" ? `${a.wins||0} of ${a.autoStartAt} wins under this goal`
-    : next === "auto-merge" ? `${a.wins||0} of ${a.autoMergeAt} wins and a validated holdout`
-    : "";
-  const headBtn = !next
-    ? `<button class="btn ghost gedit perm" disabled title="Top of the ladder">Fully unlocked</button>`
-    : canPromote
-    ? `<button class="btn ghost gedit perm" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'${next}'})">🔓 Unlock ${next}</button>`
-    : `<button class="btn ghost gedit perm" disabled title="Needs ${needed}${a.regressed ? " and no regressions" : ""}">Not yet earned</button>`;
-  const act = `${next && !canPromote ? `<div class="sub" style="margin-top:8px;font-size:11.5px">${next.replace("-"," ")} unlocks at ${needed}.${a.regressed ? " A regression resets the count." : ""}</div>` : ""}
-    ${(p.autonomy === "auto-start" || p.autonomy === "auto-merge") ? `<div style="margin-top:10px"><button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();post('/api/autonomy',{id:'${p.id}',level:'${p.autonomy === "auto-merge" ? "auto-start" : "human-gated"}'})">Dial down</button></div>` : ""}`;
+  const pol = p.policy || {};
   const b = pol.budget;
   const budget = b
     ? guardCard("Budget", `${b.currency === "USD" ? "$" : ""}${Number(b.daily_cap).toFixed(2)}<span style="font-size:11px;color:var(--text-2)">/day</span>`,
         `${b.source || ""}${b.note ? " · " + b.note : ""}`, "", "", `editBudget('${p.id}')`)
-    : guardCard("Budget", "not set", "No spend cap declared for this connector. Experiments can change bids without a ceiling.", "", "unset", `editBudget('${p.id}')`);
+    : guardCard("Budget", "not set", "Set a budget reference for your manual setup. OpenXPLI does not change budgets.", "", "unset", `editBudget('${p.id}')`);
 
   const br = pol.brand;
   const brand = br
     ? guardCard("Brand &amp; claims", `${br.limits ? `${br.limits.title}/${br.limits.description}` : ""}<span style="font-size:11px;color:var(--text-2)"> chars</span>`,
-        `Copy is generated and ships under your name on ${br.domain || "the linked domain"}.`,
+        `Draft copy is prepared for your review for ${br.domain || "the linked domain"}.`,
         `<ul class="grules">${(br.rules||[]).map(r => `<li>${r}</li>`).join("")}</ul>`, "", `editBrand('${p.id}')`)
-    : guardCard("Brand &amp; claims", "not set", "Nothing constrains what generated copy may say.", "", "unset", `editBrand('${p.id}')`);
+    : guardCard("Brand &amp; claims", "not set", "Add brand rules to guide draft copy. Review every claim before publishing.", "", "unset", `editBrand('${p.id}')`);
 
   return `<div class="sect">
     <div class="collhead"><span class="plabel">Guardrails</span>
       <span class="mono" style="font-size:10.5px;color:var(--text-2)">what limits the agent</span></div>
-    ${guardCard("Autonomy", p.autonomy, copy[0], rungs + act, copy[1] ? "warn" : "", null, headBtn)}
+    ${guardCard("Execution", "You launch", "OpenXPLI learns through the browser and prepares your assets. You review, configure and publish the experiment yourself. Autonomy comes later.", "", "", null)}
     ${budget}
     ${brand}
   </div>`;
@@ -991,24 +1076,65 @@ function expOpen(e){
   return v === undefined ? (e.status === "running" || e.status === "launching") : v;
 }
 function toggleExp(eid, cur){ window.__expOpen[eid] = !cur; renderProcesses(window.__procs || []); }
-function splitRows(sp){
+window.__holdOpen = window.__holdOpen || {};
+function toggleHold(eid){ window.__holdOpen[eid] = !window.__holdOpen[eid]; renderProcesses(window.__procs || []); }
+function splitRows(sp, eid){
   if (!sp || !sp.length) return "";
-  return `<div class="splitwrap">
-    <div class="plabel" style="margin-bottom:2px">Arms</div>
-    <div class="sub" style="padding:0 14px 8px;font-size:11px">What a visitor gets in each arm. Dashed values were adopted by earlier experiments and ride along. The two right columns are the raw metric and that arm against control.</div>
-    ${sp.map(a => `<div class="arm ${a.key}">
+  const control = sp.find(a => a.key === "control");
+  const variant = sp.find(a => a.key === "variant");
+  const holdout = sp.find(a => a.key === "holdout");
+  if (!control || !variant) return "";
+  const field = variant.diff ? variant.diff.field : "";
+  const open = !!window.__holdOpen[eid];
+  // The holdout is condensed, but it can WIN and revert an adoption — so the
+  // icon goes amber the moment that arm is ahead of control.
+  const brewing = holdout && !holdout.absent && holdout.multiple != null && holdout.multiple > 1;
+
+  const bar = a => `<div class="asrow">
+    <div class="asrowhead"><span>${a.label}</span><span class="asrowpct">${a.absent ? "N/A" : `${a.shareExact ? "" : "~"}${Math.round(a.share*100)}%`}</span></div>
+    <div class="asbar ${a.key}">${a.absent ? "" : `<i style="width:${Math.max(4, a.share*100)}%"></i>`}</div>
+  </div>`;
+  const pane = (a, side, value) => `<div class="armpane ${side}">
+    <div class="apanehead">
       <span class="armkey">${a.label}</span>
-      <span class="armbar"><i style="width:${Math.max(3, a.share*100)}%"></i></span>
-      <span class="armshare">${a.shareExact ? "" : "~"}${Math.round(a.share*100)}%</span>
-      <div style="flex:1;min-width:0">
-        <div class="armcfg">${a.config.map(c => `<span class="${c.inherited?"inh":""}">${c.field}: ${c.value}</span>`).join("")}</div>
-        <div class="sub" style="margin-top:4px;font-size:11.5px">${a.note}</div>
+      <span style="flex:1"></span>
+      <span class="armraw" style="width:auto">${fmtRaw(a.raw, a.unit)}</span>
+      <span class="armmult ${a.multiple==null?"none":a.key==="control"?"ref":a.multiple>1?"up":a.multiple<1?"down":"ref"}" style="width:auto;margin-left:10px">${a.multiple==null?"—":fmtX(a.multiple)}</span>
+    </div>
+    <div class="apaneval">${value}</div>
+  </div>`;
+
+  return `<div class="splitwrap">
+    <div class="swhead">
+      <span class="plabel">Variant is testing${field ? `: <span class="mono" style="text-transform:none;letter-spacing:0">${field}</span>` : ""}</span>
+      <span style="flex:1"></span>
+      ${holdout ? `<button class="btn ghost holdbtn ${brewing?"brewing":""} ${open?"on":""}" title="${brewing ? "The holdout arm is ahead of control — a revert may be coming" : "Show the holdout arm"}" onclick="event.stopPropagation();toggleHold('${eid}')">ⓘ holdout${brewing ? ` ${fmtX(holdout.multiple)}` : ""}</button>` : ""}
+    </div>
+    <div class="sub" style="padding:0 14px 9px;font-size:11px">Everything else is identical in both arms.</div>
+    <div class="armpanes">
+      <div class="armsplit">
+        <div class="asttl">arms</div>
+        ${bar(variant)}${bar(control)}${holdout ? bar(holdout) : ""}
       </div>
-      <span class="armraw">${fmtRaw(a.raw, a.unit)}</span>
-      <span class="armmult ${a.multiple==null?"none":a.key==="control"?"ref":a.multiple>1?"up":a.multiple<1?"down":"ref"}">${a.multiple==null?"—":fmtX(a.multiple)}</span>
-    </div>`).join("")}
+      ${pane(control, "left", variant.diff ? variant.diff.from : "—")}
+      ${pane(variant, "right", variant.diff ? variant.diff.to : "—")}
+    </div>
+    ${open && holdout ? `<div class="hstrip ${holdout.absent?"absent":""}">
+      <span class="armkey">holdout</span>
+      <span class="apaneshare">${holdout.absent ? "N/A" : Math.round(holdout.share*100)+"%"}</span>
+      <span class="dverb holdout">${holdout.verb}</span>
+      ${holdout.diff
+        ? `<span class="dfield">${holdout.diff.field}</span><span class="hval">${holdout.diff.to}</span>`
+        : `<span class="sub" style="font-size:11.5px">${holdout.note}</span>`}
+      <span style="flex:1"></span>
+      <span class="armraw" style="width:auto">${holdout.absent ? "N/A" : fmtRaw(holdout.raw, holdout.unit)}</span>
+      <span class="armmult ${holdout.absent||holdout.multiple==null?"none":holdout.multiple>1?"up":"down"}" style="width:auto;margin-left:10px">${holdout.absent?"N/A":holdout.multiple==null?"—":fmtX(holdout.multiple)}</span>
+    </div>
+    ${holdout.diff ? `<div class="sub" style="padding:6px 14px 0;font-size:11.5px">${holdout.note}</div>` : ""}` : ""}
   </div>`;
 }
+const fmtMoney = n => (n < 0 ? "-" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
+const VALUE_LABEL = { value:"annual value", savings:"annual savings", recovered:"annual loss recovered", none:"" };
 const fmtRaw = (v, u) => v == null ? "—"
   : u === "%" ? v.toFixed(2) + "%"
   : u === "$" ? "$" + v.toFixed(2)
@@ -1027,6 +1153,7 @@ function expGroup(title, count, rows, extra, empty){
 }
 function expListSect(p){
   const d10 = ts => new Date(ts).toISOString().slice(0,10);
+  const ad = p.adopted;
   const exps = p.experiments || [];
   const running = [], suggested = [], finished = [];
 
@@ -1048,29 +1175,38 @@ function expListSect(p){
       <span class="badge b-running">running</span>
       <div style="flex:1;min-width:0">
         <div style="font-size:12.5px;font-weight:500"><span class="chev" style="transform:rotate(${openR?90:0}deg)">▸</span><span class="mono">${e.id}</span>${e.object?` <span class="cchip">${e.object}</span>`:""} — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
-        <div class="sub" style="margin-top:2px">day ${dayN} of ${days} · vs control · to ${d10(e.ends_at)}</div>
+        <div class="sub" style="margin-top:2px">day ${dayN} of ${days} · vs control · to ${d10(e.ends_at)}${(() => {
+          const pw = e.power ? (typeof e.power === "string" ? JSON.parse(e.power) : e.power) : null;
+          return pw ? ` · <span class="pwr" title="${pw.basis}">resolves ≥${(pw.mde*100).toFixed(0)}%, expects ${(pw.expected*100).toFixed(0)}% · ${Math.round(pw.clicks_per_arm)} clicks/arm</span>` : "";
+        })()}</div>
       </div>
-      <span class="armraw" style="width:auto;margin-right:10px">${fmtRaw(e.baseline != null && e.last_multiple != null ? e.baseline * e.last_multiple : null, e.baseline_unit)}</span>
+      <span class="armraw" style="width:auto;margin-right:10px">${fmtRaw(e.baseline == null || e.last_multiple == null ? null : (e.baseline_inverse ? e.baseline / e.last_multiple : e.baseline * e.last_multiple), e.baseline_unit)}</span>
       <span class="mono" style="font-weight:600;${e.last_multiple==null?"color:var(--text-2)":e.last_multiple>1?"color:var(--green)":"color:var(--scarlet)"}">${e.last_multiple==null?"—":fmtX(e.last_multiple)+"…"}</span>
     </div>`);
-    if (openR) running.push(`<div class="outcomepanel">${splitRows(e.split)}</div>`);
+    if (openR) running.push(`<div class="outcomepanel">${splitRows(e.split, e.id)}</div>`);
   }
   for (const c of (p.candidates||[]).slice().sort((a,b)=>b.expected_multiple-a.expected_multiple)){
     suggested.push(`<div class="exprow">
-      <span class="badge b-choose">proposed</span>
+      <span class="badge b-choose">${c.evidence ? "observed" : "template"}</span>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:500">${c.field}: ${c.control_value} → <b>${c.variant_value}</b></div>
-        <div class="sub" style="margin-top:2px">${c.rationale}</div>
-        <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${p.goal && c.metric === p.goal.metric ? "✓ " : "⚠ off-goal: "}${c.metric}${c.inverse?" (1/x)":""} · expected ~×${c.expected_multiple.toFixed(2)}</div>
+        <div style="font-size:12.5px;font-weight:500">${esc(c.field)}: ${esc(c.control_value)} → <b>${esc(c.variant_value)}</b></div>
+        <div class="sub" style="margin-top:2px">${esc(c.rationale)}</div>
+        <div class="mono" style="font-size:10.5px;color:var(--text-2);margin-top:2px">${p.goal && c.metric === p.goal.metric ? "✓ " : "⚠ off-goal: "}${c.metric}${c.inverse?" (1/x)":""} · expected ~×${c.expected_multiple.toFixed(2)}${c.power ? ` · <span class="pwr" title="${c.power.basis}">${Math.round(c.power.run_hours/168)}-week run, resolves ≥${(c.power.mde*100).toFixed(0)}%</span>` : ""}</div>
       </div>
-      <button class="btn primary" style="padding:4px 12px" onclick="event.stopPropagation();post('/api/accept',{candidate:'${c.id}'})">Start</button>
-      <button class="btn ghost" style="padding:4px 10px" onclick="event.stopPropagation();post('/api/dismiss',{candidate:'${c.id}'})">Dismiss</button>
+      <button class="btn primary" style="padding:4px 12px" data-kit-action="prepare" data-candidate="${esc(c.id)}" ${!c.evidence?'disabled title="Learn the account through the browser first, then request new suggestions"':""}>${(p.kits||[]).some(k=>k.candidate_id===c.id)?"View kit":"Prepare experiment kit"}</button>
+      <button class="btn ghost" style="padding:4px 10px" data-kit-action="dismiss" data-candidate="${esc(c.id)}">Dismiss</button>
     </div>`);
   }
   // What the winning arm MEANS, not just which one it was.
   const winLabel = (w, aa) => w === "variant" ? ["variant adopted","good"]
     : w === "control" ? ["no change",""]
     : aa ? ["measurement suspect","bad"] : ["auto-reverted","warn"];
+  const finishedHead = `<div class="exprow exphead">
+    <div style="flex:1;min-width:0"></div>
+    <div class="rawcell">${p.goal ? p.goal.metric : "result"}</div>
+    <div class="winnercell">result</div>
+    <div class="valuecell">annualized estimate</div>
+  </div>`;
   for (const e of exps.filter(e => e.status === "won" || e.status === "failed")){
     const o = e.outcome;
     const open = expOpen(e);
@@ -1080,7 +1216,9 @@ function expListSect(p){
     // The number that matters is the WINNING arm's, not always the variant's.
     const wMult = !o ? null : w === "variant" ? o.final_multiple : w === "holdout" ? o.holdout_multiple : 1;
     const isAA = e.holdout_field === e.field && e.holdout_value === e.control_value;
-    const wl = w ? winLabel(w, isAA) : null;
+    const adoption = ad?.rows.find(r => r.experiment_id === e.id);
+    const wl = w === "variant" ? (adoption?.state === "live" ? ["variant adopted", "good"] : ["variant won", ""]) : w ? winLabel(w, isAA) : null;
+    const av = e.annual_value;
     finished.push(`<div class="exprow" style="cursor:pointer" onclick="event.stopPropagation();toggleExp('${e.id}',${open})">
       <div style="flex:1;min-width:0">
         <div style="font-size:12.5px;font-weight:500"><span class="chev" style="transform:rotate(${open?90:0}deg)">▸</span><span class="mono">${e.id}</span>${e.object?` <span class="cchip">${e.object}</span>`:""} — ${e.field}: ${e.control_value} → <b>${e.variant_value}</b></div>
@@ -1090,14 +1228,12 @@ function expListSect(p){
           <span class="mono" style="font-size:10.5px">decided ${d10(e.ends_at)}</span>
         </div>
       </div>
-      <div class="rawcell">
-        <div class="rawlab">${o && o.goal_metric ? o.goal_metric : "result"}</div>
-        <div class="rawval">${fmtRaw(e.baseline != null && wMult != null ? e.baseline * wMult : null, e.baseline_unit)}</div>
-      </div>
+      <div class="rawcell"><div class="rawval">${fmtRaw(e.baseline != null && wMult != null ? e.baseline * wMult : null, e.baseline_unit)}</div></div>
       <div class="winnercell">
         <div class="winnerarm ${wl?wl[1]:""}">${wl ? wl[0] : "—"}</div>
         <div class="winnermult ${wl?wl[1]:""}">${wMult==null?"—":fmtX(wMult)}</div>
       </div>
+      <div class="valuecell"><div class="valueamt ${av && av.kind !== "none" ? "good" : "none"}" title="${av ? av.formula : ""}">${av && av.kind !== "none" ? fmtMoney(av.amount) + "<span class=\"peryr\">/yr</span><div class=\"sub\">" + (e.value_state || "historical") + " estimate</div>" : "—"}</div></div>
     </div>`);
     if (open && o) finished.push(outcomePanel(e));
   }
@@ -1106,7 +1242,7 @@ function expListSect(p){
   const oc = p.outcomes || {};
   const open = !window.__coll[p.id];
   const total = exps.length + (p.candidates||[]).length;
-  const rescout = `<button class="btn ghost" style="padding:3px 10px;font-size:11.5px" onclick="event.stopPropagation();post('/api/rescout',{id:'${p.id}'})">↻ New suggestions</button>`;
+  const rescout = `<button class="btn ghost" style="padding:3px 10px;font-size:11.5px" data-kit-action="learn" data-connector="${esc(p.id)}" ${p.learning?.active?"disabled":""}>${p.learning?.active?"Learning queued…":"↻ New suggestions"}</button>`;
   return `<div class="sect">
     <div class="collhead" onclick="event.stopPropagation();toggleExps('${p.id}')">
       <span style="display:inline-block;transition:transform .2s;transform:rotate(${open?90:0}deg)">▸</span>
@@ -1117,17 +1253,121 @@ function expListSect(p){
     ${open ? [
       expGroup("Running", running.filter(r=>r.startsWith('<div class="exprow')).length, running, "",
                p.goal ? `Nothing running. OpenXPLI proposes the next experiment below.` : ""),
-      expGroup("Suggested new experiments to start", (p.candidates||[]).length, suggested, rescout,
+      expGroup("Choose an experiment to prepare", (p.candidates||[]).length, suggested, rescout,
                "Scouting for the next experiment against " + (p.goal ? p.goal.metric : "the goal") + "…"),
-      expGroup("Finished", finished.filter(r=>r.startsWith('<div class="exprow')).length, finished, "", ""),
+      expGroup("Finished", finished.filter(r=>r.startsWith('<div class="exprow')).length, finished.length ? [finishedHead, ...finished] : [],
+        ad && ad.activeAnnualValue != null ? `<span class="bankedchip" title="Estimates use the declared value model, not realized savings. Missing value models contribute no estimate.">Active estimate: <b>${fmtMoney(ad.activeAnnualValue ?? 0)}/yr</b> · Potential, awaiting approval: <b>${fmtMoney(ad.potentialAnnualValue ?? 0)}/yr</b> · Historical decisions: ${ad.historicalDecisions ?? 0} (adoptions and reversions)</span>` : "", ""),
     ].join("") : ""}
   </div>`;
 }
+const kitFile = (id, name, preview=false) => `/api/kits/file?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}${preview?"&preview=1":""}`;
+const kitById = id => (window.__procs || []).flatMap(p => p.kits || []).find(k => k.id === id);
+const KIT_STATES = { queued:"Queued", preparing:"Preparing assets", ready:"Draft ready for review", "needs-input":"Image needed", failed:"Preparation failed", launched:"Launched by you" };
+function kitSection(p){
+  const kits = p.kits || [];
+  if (!kits.length) return "";
+  return `<section class="sect kit-section"><div class="collhead"><span class="plabel">Your experiment kits</span><span class="sub">Review here. Launch in your ad tool.</span></div>${kits.map((k, i) => {
+    const c = k.content, open = window.__openKit === k.id || (window.__openKit == null && i === 0);
+    const busy = ["queued", "preparing"].includes(k.state);
+    const changed = c?.imageMode === "variant" ? "Upload the variant image below" : c?.variant;
+    return `<article class="kit-card"><button class="kit-heading" data-kit-action="toggle" data-kit="${esc(k.id)}"><span><span class="chev">${open?"▾":"▸"}</span><b>${esc(c?.title || "Preparing your experiment kit")}</b></span><span class="badge ${busy?"b-analyzing pulsing":k.state==="failed"?"b-regressed":"b-choose"}">${KIT_STATES[k.state] || esc(k.state)}</span></button>
+    ${open ? `<div class="kit-body">
+      <p class="sub">${k.state === "launched" ? `Launch recorded ${new Date(k.launched_at).toLocaleString()} from your confirmation. Automatic monitoring has not started.` : "Nothing has been created or launched in your ad account. You decide when to apply this kit."}</p>
+      ${busy ? `<div class="kit-wait">Preparing copy, creative, and a setup guide from the account observations… This can take a few minutes.</div>` : ""}
+      ${k.error ? `<div class="kit-alert">${esc(k.error)}</div>` : ""}
+      ${c ? `<p>${esc(c.rationale)}</p><div class="kit-columns"><div>
+        <div class="kit-label">${c.imageMode === "variant" ? "New image for the variant" : "Existing image · keep unchanged"}</div>
+        <div class="kit-image">${k.has_image ? `<img src="${kitFile(k.id,"creative.png",true)}&v=${k.updated_at}" alt="${c.imageMode === "variant" ? "Prepared variant creative" : "Original creative to reuse"}">` : `<div><b>${c.imageMode === "variant" ? "Your image belongs here" : "Reuse the original ad image"}</b><p>${esc(c.imageNote)}</p></div>`}</div>
+        <p class="sub">${esc(c.imageSize)}. Preview is illustrative; check the placement in your ad tool.</p>
+        <div class="kit-actions">${k.has_image ? `<a class="btn" href="${kitFile(k.id,"creative.png")}">Download PNG</a>` : ""}
+        ${!["launched","preparing","queued"].includes(k.state) ? `<label class="btn">${k.has_image?"Replace PNG":"Attach PNG"}<input type="file" accept="image/png" data-kit-upload="${esc(k.id)}" hidden></label>` : ""}</div>
+        <details class="kit-brief"><summary>Image brief</summary><p>${esc(c.imagePrompt)}</p><button class="btn ghost" data-kit-action="copy-prompt" data-kit="${esc(k.id)}">Copy image brief</button></details>
+      </div><div>
+        <div class="kit-label">Change only ${esc(c.field)}</div><div class="kit-change"><span class="sub">Control</span><p>${esc(c.control)}</p><span class="sub">Variant</span><p><b>${esc(changed)}</b></p>${c.imageMode !== "variant" ? `<button class="btn primary" data-kit-action="copy-variant" data-kit="${esc(k.id)}">Copy new ${esc(c.field)}</button>` : ""}</div>
+        <div class="kit-label" style="margin-top:20px">Keep these strings unchanged</div>
+        ${c.fields.map((f,n) => `<div class="kit-field"><div><b>${esc(f.label)}</b><p>${esc(f.value || "Copy from the source ad — not observed")}</p></div>${f.value ? `<button class="btn ghost" data-kit-action="copy-field" data-kit="${esc(k.id)}" data-field="${n}">Copy</button>` : ""}</div>`).join("")}
+      </div></div>
+      <div class="kit-instructions"><div><h3>Set it up yourself</h3><ol>${c.instructions.map(s=>`<li>${esc(s)}</li>`).join("")}</ol></div><div><h3>Check before launch</h3><ul>${c.checks.map(s=>`<li>${esc(s)}</li>`).join("")}</ul><p class="sub">Goal: ${esc(c.metric)} · ${c.inverse?"lower":"higher"} is better. Suggested duration: ${c.runDays} days.</p><p class="sub">Budget, audience, destination and all other settings stay under your control.</p></div></div>
+      <details class="kit-brief"><summary>What this kit is based on</summary><p>Source ad: ${esc(c.object)}</p>${c.evidence.length ? c.evidence.map(e=>`<p class="sub">${esc(e.url)} · observed ${new Date(e.observedAt).toLocaleString()}</p>`).join("") : `<p class="kit-alert">Template suggestion. No browser observations were available.</p>`}</details>
+      <div class="kit-actions kit-footer"><a class="btn primary" href="${kitFile(k.id,"kit.html")}">Download complete kit</a><a class="btn" href="${kitFile(k.id,"copy.txt")}">Download copy &amp; guide</a><a class="btn ghost" href="${kitFile(k.id,"kit.json")}">JSON</a><span style="flex:1"></span>${k.state === "ready" ? `<button class="btn" data-kit-action="launch" data-kit="${esc(k.id)}">I launched this myself</button>` : ""}</div>
+      ${k.launch_note ? `<p class="sub">Your launch notes: ${esc(k.launch_note)}</p>` : ""}
+      ` : ""}
+      ${["failed","needs-input"].includes(k.state) ? `<button class="btn" data-kit-action="retry" data-kit="${esc(k.id)}">Retry preparation</button>` : ""}
+    </div>` : ""}</article>`;
+  }).join("")}</section>`;
+}
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+  document.querySelectorAll(".connector-menu[open]").forEach(menu => { menu.open = false; menu.querySelector("summary").focus(); });
+});
+document.addEventListener("click", async event => {
+  document.querySelectorAll(".connector-menu[open]").forEach(menu => { if (!menu.contains(event.target)) menu.open = false; });
+  const b = event.target.closest("[data-kit-action]");
+  if (!b) return;
+  event.stopPropagation();
+  const action = b.dataset.kitAction, id = b.dataset.kit;
+  try {
+    if (action === "delete-connector") {
+      b.closest("details").open = false;
+      const connector = b.dataset.connector;
+      formModal("Delete connector", `<p>Delete <b>${esc(connector)}</b> and its local goals, observations, suggestions, experiment history and kits?</p><p class="sub">Download any kits you want to keep first. Historical ledger files are retained. This does not delete your ad account, change live ads, or sign you out of Chrome.</p>`, "Delete connector", async () => {
+        const result = await post("/api/connectors/delete", { id: connector, confirmed: true });
+        if (result.ok) { selProc = null; closeExp(); await refresh(); }
+      });
+      return;
+    }
+    if (action === "continue-signin" || action === "cancel-learning") {
+      b.disabled = true;
+      await post(action === "continue-signin" ? "/api/signin/continue" : "/api/learning/cancel", { id: b.dataset.connector });
+      return;
+    }
+    if (action === "signin" || action === "learn") {
+      b.disabled = true;
+      await post(action === "signin" ? "/api/signin" : "/api/rescout", { id: b.dataset.connector });
+      return;
+    }
+    if (action === "dismiss") { await post("/api/dismiss", { candidate: b.dataset.candidate }); return; }
+    if (action === "prepare") {
+      b.disabled = true;
+      const result = await post("/api/kits/prepare", { candidate: b.dataset.candidate });
+      if (result.kit) { window.__openKit = result.kit.id; await refresh(); }
+      return;
+    }
+    if (action === "toggle") { window.__openKit = window.__openKit === id ? "" : id; renderProcesses(window.__procs); return; }
+    if (action === "retry") { b.disabled = true; await post("/api/kits/retry", { id }); return; }
+    const k = kitById(id), c = k?.content;
+    if (!c) return;
+    if (action.startsWith("copy-")) {
+      const text = action === "copy-variant" ? c.variant : action === "copy-prompt" ? c.imagePrompt : c.fields[Number(b.dataset.field)]?.value;
+      if (text) { await navigator.clipboard.writeText(text); b.textContent = "Copied"; }
+    } else if (action === "launch") {
+      formModal("Record your manual launch", `<p class="sub">This records your confirmation only. OpenXPLI will not publish anything or start automatic monitoring.</p>${TA("kit-launch-note", "Control and variant IDs, actual start time, and notes", "Control ID… Variant ID… Started at…", "", 4)}<label><input type="checkbox" id="kit-launched-check"> I reviewed the kit, resolved the checks, and launched the experiment myself.</label>`, "Record launch", async () => {
+        if (!document.getElementById("kit-launched-check").checked) return;
+        const result = await post("/api/kits/launched", { id, note: val("kit-launch-note"), confirmed: true });
+        if (result.ok) closeExp();
+      });
+    }
+  } catch (e) { alert(e.message || "Could not complete that action. Try again."); }
+  finally { b.disabled = false; }
+});
+document.addEventListener("change", async event => {
+  const input = event.target.closest("[data-kit-upload]");
+  if (!input?.files?.[0]) return;
+  const file = input.files[0];
+  if (file.size > 12 * 1024 * 1024) { alert("Use a PNG under 12 MB."); return; }
+  input.disabled = true;
+  try {
+    const image = await new Promise((resolve,reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(",")[1]); reader.onerror = reject; reader.readAsDataURL(file); });
+    await post("/api/kits/image", { id: input.dataset.kitUpload, image });
+  } catch { alert("Could not attach the image. Try again."); }
+  finally { input.disabled = false; }
+});
+
 function procById(pid){ return (window.__procs || []).find(x => x.id === pid) || {}; }
 function editBudget(pid){
   const p = procById(pid), b = (p.policy||{}).budget || {};
   formModal("Budget guardrail", [
-    `<div class="sub" style="line-height:1.5">A ceiling OpenXPLI will not raise. A variant whose projected spend would exceed it is never started.</div>`,
+    `<div class="sub" style="line-height:1.5">A budget reference for your manual setup. Your kit will remind you to keep combined spend below this cap.</div>`,
     F("g-cap","Daily cap", "150.00", `value="${b.daily_cap ?? ""}"`),
     F("g-cur","Currency", "USD", `value="${b.currency ?? "USD"}"`),
     F("g-src","Where this comes from", "campaign daily budget", `value="${esc(b.source ?? "")}"`),
@@ -1136,14 +1376,14 @@ function editBudget(pid){
     if (!(cap > 0)) return toast("<b>Daily cap must be a positive number.</b>");
     const d = await post("/api/policy", { id: pid, patch: { budget: {
       daily_cap: cap, currency: val("g-cur") || "USD", source: val("g-src"),
-      note: "OpenXPLI never raises the cap; a variant that would exceed it is not started." } } });
+      note: "For manual setup: keep combined spend within this cap and no higher than the existing budget." } } });
     if (d.ok) closeExp();
   });
 }
 function editBrand(pid){
   const p = procById(pid), br = (p.policy||{}).brand || {};
   formModal("Brand &amp; claims guardrail", [
-    `<div class="sub" style="line-height:1.5">Generated copy ships under your name. These rules are given to the model that writes variants and checked before a variant is started.</div>`,
+    `<div class="sub" style="line-height:1.5">These rules guide draft copy and image briefs. Review every claim yourself before publishing.</div>`,
     F("g-dom","Domain copy points at", "edgedelta.com", `value="${esc(br.domain ?? "")}"`),
     `<div style="display:flex;gap:10px">
       <div style="flex:1">${F("g-lt","Title limit", "50", `value="${br.limits?.title ?? ""}"`)}</div>
@@ -1257,7 +1497,7 @@ async function refresh(){
     const procs = await j("/api/processes");
     renderProcesses(procs);
     clearTimeout(window.__procPoll);
-    if (procs.some(p => p.status === "shadow"))
+    if (procs.some(p => (p.learning?.active) || p.status === "shadow" || (p.kits||[]).some(k => ["queued","preparing"].includes(k.state))))
       window.__procPoll = setTimeout(() => { if (view === "processes") refresh(); }, 2000);
   } else {
     renderLedger(await j("/api/records"));

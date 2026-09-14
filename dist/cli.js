@@ -45,6 +45,109 @@ function status() {
         console.log(`heartbeat: ${readFileSync(HEARTBEAT_PATH, "utf8").trim()}`);
 }
 switch (cmd) {
+    case "browser": {
+        const { startChrome, endpoint, chromeAlive, ensureTarget, pageTargets } = await import("./chrome.js");
+        const { BROWSER_MODE, BROWSER_PROFILE } = await import("./paths.js");
+        if (BROWSER_MODE !== "attach") {
+            console.log('browser: OPENXPLI_BROWSER_MODE=launch — no shared browser is used. Unset it to use one.');
+            break;
+        }
+        if (process.argv.includes("--import-profile")) {
+            const { importChromeProfile, chromeUserDataDir, chromeProfileDir, profileNames } = await import("./profile.js");
+            const { execSync } = await import("node:child_process");
+            // Chrome must not be writing the profile while it is copied, and it must
+            // not be holding the destination either.
+            const busy = (pattern) => { try {
+                return execSync(`pgrep -f ${JSON.stringify(pattern)} | head -1`, { encoding: "utf8" }).trim();
+            }
+            catch {
+                return "";
+            } };
+            if (busy(`user-data-dir=${BROWSER_PROFILE}`))
+                throw new Error('The OpenXPLI browser is open on the destination. Quit it, then run this again.');
+            const userData = chromeUserDataDir();
+            const profile = chromeProfileDir(userData);
+            if (busy("MacOS/Google Chrome"))
+                console.log("note: Chrome is running — quitting it first gives a cleaner copy of the cookie store.");
+            console.log(`importing "${profile}" from ${userData}${profileNames(userData).length > 1 ? ` (profiles: ${profileNames(userData).join(", ")})` : ""}`);
+            const r = importChromeProfile({ userData, profile, force: process.argv.includes("--force") });
+            console.log(`browser: imported ${(r.bytes / 1e6).toFixed(0)} MB — the OpenXPLI browser now carries your sign-ins.`);
+            console.log("Saved passwords, cards and addresses were NOT copied; sessions come from cookies and site storage.");
+            console.log('Run "openxpli browser" to open it.');
+            break;
+        }
+        if (process.argv.includes("--reset-checks")) {
+            const { playbookFor, clearChallengeCookies } = await import("./browser-scout.js");
+            const { attachSession } = await import("./chrome.js");
+            const pb = playbookFor("ChatGPT Ads");
+            if (!pb)
+                throw new Error("no playbook to reset");
+            await startChrome(false);
+            await ensureTarget();
+            const session = await attachSession(false);
+            try {
+                const dropped = await clearChallengeCookies(session.ctx, pb);
+                console.log(`browser: dropped ${dropped.length} challenge cookie(s) for ${pb.name}${dropped.length ? ":\n  " + dropped.join("\n  ") : ""}`);
+                console.log("Your sign-ins are untouched — these were bot-check cookies only.");
+            }
+            finally {
+                await session.close();
+            }
+            break;
+        }
+        const already = await chromeAlive();
+        await startChrome(false);
+        // A running Chrome with every window closed still answers the port, so
+        // "already open" is not the same as "has a window".
+        const windows = already ? (await pageTargets()).length : 0;
+        await ensureTarget();
+        console.log(`browser: ${!already ? "opened" : windows ? "already open" : "was running with no window — reopened one"} on ${endpoint()}`);
+        console.log(`profile: ${BROWSER_PROFILE}`);
+        console.log("Sign in to your tools in this window as you normally would. Leave it open; OpenXPLI attaches to it when it needs to read or act.");
+        break;
+    }
+    case "browser-job": {
+        const { runLearningJob } = await import("./learning-jobs.js");
+        try {
+            await runLearningJob(process.argv[3]);
+        }
+        catch (e) {
+            console.error(String(e));
+            process.exitCode = 1;
+        }
+        break;
+    }
+    case "kit-build": {
+        const { buildKit } = await import("./kits.js");
+        try {
+            const kit = await buildKit(process.argv[3]);
+            console.log(`${kit.id}: ${kit.state}${kit.error ? " — " + kit.error : ""}`);
+            if (kit.state === "failed" || kit.state === "needs-input")
+                process.exitCode = 1;
+        }
+        catch (e) {
+            console.error(String(e));
+            process.exitCode = 1;
+        }
+        break;
+    }
+    case "prepare": {
+        const { requestKit, buildKit } = await import("./kits.js");
+        try {
+            if (!process.argv[3])
+                throw new Error("usage: openxpli prepare <candidate-id>");
+            const queued = requestKit(process.argv[3], false);
+            const kit = await buildKit(queued.id);
+            console.log(`Kit ${kit.id}: ${kit.state}. Open the console to review and download. Nothing has been launched.${kit.error ? " " + kit.error : ""}`);
+            if (kit.state === "failed" || kit.state === "needs-input")
+                process.exitCode = 1;
+        }
+        catch (e) {
+            console.error(String(e));
+            process.exitCode = 1;
+        }
+        break;
+    }
     case "init":
         init();
         break;
@@ -114,6 +217,52 @@ switch (cmd) {
         harvest();
         break;
     }
+    case "plan": {
+        // Read-only rehearsal against the live account: what WOULD change.
+        const { act, playbookFor: pbf } = await import("./browser-scout.js");
+        const expId = process.argv[3];
+        try {
+            if (!expId)
+                throw new Error("usage: openxpli plan <experiment-id>");
+            const row = openDb().prepare("SELECT e.*, p.tool FROM experiments e JOIN processes p ON p.id = e.process_id WHERE e.id = ?").get(expId);
+            if (!row)
+                throw new Error(`plan: no such experiment: ${expId}`);
+            const pb = pbf(row.tool);
+            if (!pb)
+                throw new Error(`plan: no playbook for ${row.tool}`);
+            console.log(await act(row, pb, "plan"));
+        }
+        catch (e) {
+            console.error(String(e instanceof Error ? e.message : e));
+            process.exitCode = 1;
+        }
+        break;
+    }
+    case "activate": {
+        const { act, playbookFor: pbf } = await import("./browser-scout.js");
+        const expId = process.argv[3];
+        try {
+            if (!expId)
+                throw new Error("usage: openxpli activate <experiment-id>");
+            const db = openDb();
+            const row = db.prepare("SELECT e.*, p.tool, p.autonomy FROM experiments e JOIN processes p ON p.id = e.process_id WHERE e.id = ?").get(expId);
+            if (!row)
+                throw new Error(`activate: no such experiment: ${expId}`);
+            if (row.status !== "launching")
+                throw new Error(`activate: ${expId} is ${row.status}, not awaiting activation`);
+            const pb = pbf(row.tool);
+            if (!pb)
+                throw new Error(`activate: no playbook for ${row.tool}`);
+            console.log(await act(row, pb, "apply", false));
+            db.prepare("UPDATE experiments SET status = 'running', started_at = ? WHERE id = ?").run(Date.now(), expId);
+            console.log(`${expId} is live — hour 0 is now.`);
+        }
+        catch (e) {
+            console.error(String(e instanceof Error ? e.message : e));
+            process.exitCode = 1;
+        }
+        break;
+    }
     case "recipe": {
         const { makeRecipe, clearLock } = await import("./browser-scout.js");
         const expId = process.argv[3];
@@ -160,48 +309,23 @@ switch (cmd) {
             console.log(`[${c.id}] ${c.source_id} — ${c.field}: ${c.control_value} -> ${c.variant_value} (${c.metric}, ~x${c.expected_multiple.toFixed(2)})`);
         break;
     }
-    case "rescout": {
-        const { rescout } = await import("./scout.js");
-        try {
-            if (!process.argv[3])
-                throw new Error("usage: openxpli rescout <connector>");
-            const cands = await rescout(process.argv[3], process.argv.includes("--child"));
-            for (const c of cands)
-                console.log(`[${c.id}] ${c.field}: ${c.control_value} -> ${c.variant_value}\n       ${c.rationale}\n       ${c.metric}${c.inverse ? " (1/x)" : ""} · expected ~x${c.expected_multiple.toFixed(2)} · accept: openxpli accept ${c.id}`);
-        }
-        catch (e) {
-            console.error(String(e instanceof Error ? e.message : e));
-            process.exitCode = 1;
-        }
-        break;
-    }
+    case "rescout":
     case "signin": {
-        const { signin, playbookFor, BROWSER_PROFILE } = await import("./browser-scout.js");
-        const { openDb } = await import("./db.js");
-        const { spawnDetachedScout } = await import("./scout.js");
+        const { queueLearningJob, runLearningJob, getLearningJob } = await import("./learning-jobs.js");
+        const { signin, playbookForUrl } = await import("./browser-scout.js");
         try {
-            const arg = process.argv[3];
-            let url = arg && /^https?:/.test(arg) ? arg : undefined;
-            const db = openDb();
-            let connector;
-            if (!url && arg) {
-                const p = db.prepare("SELECT tool FROM processes WHERE id = ?").get(arg);
-                const pb = p && playbookFor(p.tool);
-                if (pb) {
-                    url = pb.url;
-                    connector = arg;
-                }
-            }
-            if (!url)
-                throw new Error("usage: openxpli signin <connector-id|url>");
-            await signin(url);
-            console.log(`session saved to ${BROWSER_PROFILE}`);
-            if (connector) {
-                // the browser just closed: learning begins now
-                db.prepare("UPDATE candidates SET status = 'dismissed' WHERE source_id = ? AND status = 'proposed'").run(connector);
-                db.prepare("UPDATE processes SET status = 'shadow', created_at = ? WHERE id = ?").run(Date.now(), connector);
-                spawnDetachedScout(connector);
-                console.log(`learning: OpenXPLI is crawling the account read-only and building the knowledge map — fresh suggestions land on the connector shortly`);
+            const sourceId = process.argv[3];
+            if (!sourceId)
+                throw new Error(`usage: openxpli ${cmd} <connector-id>`);
+            if (cmd === "signin" && /^https?:/.test(sourceId))
+                await signin(playbookForUrl(sourceId));
+            else {
+                const job = queueLearningJob(sourceId, cmd === "signin" ? "signin" : "learn", false);
+                await runLearningJob(job.id);
+                const result = getLearningJob(job.id);
+                console.log(`${sourceId}: browser task ${result.status}. See the console for status and next steps.`);
+                if (result.status === "failed")
+                    process.exitCode = 1;
             }
         }
         catch (e) {
@@ -339,12 +463,20 @@ usage: openxpli <command>
   add <account>   add a Connector (--tool "Klaviyo") — starts in shadow mode,
                   read-only; OpenXPLI analyzes it and suggests top 3 experiments
   candidates      list proposed experiment candidates [for one connector]
-  accept <cand>   accept a candidate — starts the experiment
+  prepare <cand>  prepare copy, image and instructions for manual setup
+  accept <cand>   queue an experiment kit (alias; never launches)
   dismiss <cand>  dismiss a candidate
   rescout <conn>  throw away proposed candidates and scout 3 fresh ones
-  signin <conn>   open a Chrome window to sign in to the tool once — enables
-                  real scouting (OpenXPLI rides the session, read-only)
-  autonomy <conn> dial autonomy up/down (--level auto-start|auto-merge; up must be earned)
+  browser [--import-profile [--force]] [--reset-checks]
+                  --import-profile clones your signed-in Chrome profile once, so
+                  OpenXPLI inherits your logins (SSO included) with no new
+                  sign-in; passwords and cards are not copied. Plain "browser"
+                  opens the OpenXPLI browser — a real Chrome you sign into
+                  normally (SSO, password manager, 2FA all work); it stays open
+                  and OpenXPLI attaches to it instead of driving its own profile
+  signin <conn>   open the tool's sign-in page in that browser — you sign in,
+                  OpenXPLI never sees the password, and the session persists
+  autonomy <conn> set shadow or human-gated mode; automatic execution is disabled
   tick            hourly heartbeat: real browser reads, then harvest
   harvest         fill all due hourly observations (idempotent, backfilling)
   recipe <exp>    (re)build the metric-extraction recipe for an experiment

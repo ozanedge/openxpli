@@ -1,11 +1,13 @@
 # OpenXPLI
 
-**Open experiments, loops, and iteration** — an open-source experimentation agent that enrolls
-business processes running in the tools you already use, runs one controlled single-variable
-experiment per process at a time, and merges winners like PRs. Every decision ships as a
-git-committed, human-verifiable record.
+**Open experiments, loops, and iteration.** OpenXPLI learns a business tool through
+the browser and prepares an experiment kit: copy, creative, source observations,
+and instructions you can use to set it up yourself.
 
-> Engine scaffold. Current scope: the scheduling story end to end — hourly harvest as a *data contract* (idempotent, backfilling), launchd installation, heartbeat, and health checks. Playbooks, bindings (API → CLI → browser), stats, and the review verbs land next.
+**Current milestone: learn → prepare → review → manual launch.** You control the
+account. Preparing a kit does not publish ads, change settings, allocate budget,
+or start an experiment clock. Browser writes and automatic starting/merging are
+disabled in code, including for connectors with older saved autonomy settings.
 
 ## Install
 
@@ -24,17 +26,96 @@ one — npm caches tarballs by URL, so a stable name can silently serve stale by
 ## Quick start
 
 ```sh
-openxpli init                                  # data dir + sqlite + git ledger + hourly launchd job
-openxpli add klaviyo/main-account --tool Klaviyo   # add a Connector: shadow mode, read-only
-#   -> OpenXPLI analyzes it and proposes north star metrics it could be held to
-openxpli goals klaviyo/main-account            # see the proposed goals and their guardrails
-openxpli ratify main-account#g1                # ratify one — ledgered; this defines winning
-#   -> experiments are then proposed *against* that goal, each with a rationale
-openxpli accept main-account#1                 # accept a candidate to start the experiment
-openxpli ui                                    # console at http://localhost:41100
-openxpli harvest                               # fill all due hourly observations (safe anytime)
-openxpli doctor                                # health: db, ledger, launchd, heartbeat
+openxpli add ads-openai/main-account --tool "ChatGPT Ads"
+openxpli signin ads-openai/main-account       # sign in yourself, then close Chrome
+openxpli goals ads-openai/main-account
+openxpli ratify main-account#g1              # choose the north star
+openxpli rescout ads-openai/main-account     # read the account, propose grounded ideas
+openxpli ui                                 # Connectors → Prepare experiment kit
 ```
+
+The browser learns through bounded navigation without clicking or filling account
+controls. Mutating HTTP methods and action-like navigation URLs are blocked during
+learning. A dashboard that needs POST-based reporting may require a reviewed read
+adapter; a blocked/failed crawl is not presented as successful account learning.
+Template suggestions are labeled and cannot produce an account-specific kit.
+
+In the console, **Sign in with Chrome** queues a sign-in window. After signing in,
+click **I’m signed in — continue**; OpenXPLI closes its window and learns the account.
+Closing the last sign-in window also continues. **Learn account** refreshes observations.
+
+All connectors and scheduled browser readers share one queue for the saved browser
+profile. Tasks queued behind another managed task show **Waiting for browser**.
+If an older OpenXPLI window holds the profile, launch stops after one attempt.
+Close that window, then explicitly retry; regular Chrome windows can stay open. **Cancel browser task** stops only the task you selected.
+Repeated clicks reuse the same task, and interrupted workers become retryable.
+Failed learning preserves previous suggestions and does not replace them with templates.
+
+Choose **Prepare experiment kit** beside a suggestion. The saved kit includes:
+
+- The source ad, control, exact proposed change, and observed source pages.
+- Copy buttons for the new text and the existing strings to preserve.
+- For image tests, a generated PNG and image brief; for copy tests, instructions
+  to reuse the original image (optionally attach it to the package).
+- A preview, setup instructions, and checks for details the browser could not verify.
+- A self-contained HTML download with the attached image embedded, a text guide,
+  JSON, and the PNG separately. The HTML can be opened offline or printed to PDF.
+
+A kit changes **one variable**. New copy belongs in a copy test; a new image
+belongs in an image test with unchanged copy. Unknown account values remain
+explicitly unknown. Existing strings are checked against the cited observations.
+A draft still requires your review of claims, placement requirements, and settings.
+
+After setting it up in the ad tool, **I launched this myself** records your notes
+and confirmation. It does not verify activation, enroll a running experiment, or
+start automatic measurement. Existing experiment reporting remains available as
+a legacy view; kit preparation is separate from that engine.
+
+For the CLI, `openxpli prepare <candidate-id>` waits for a kit, while
+`openxpli accept <candidate-id>` queues preparation and returns immediately.
+Both produce a kit, not a running experiment. Failed preparation is retryable;
+an image failure preserves the completed copy and setup guide.
+
+## Text and image generation
+
+Text uses the existing authenticated `claude` CLI, with built-in tools and MCP
+servers disabled for generation. The selected candidate, its observed account
+pages, and the declared brand policy are supplied as context.
+
+Image tests use the [OpenAI Images API](https://developers.openai.com/api/docs/guides/image-generation).
+Set `OPENAI_API_KEY` in the environment of the console/CLI process. The default
+image model is `gpt-image-2.5-sunburst`; override with `OPENXPLI_IMAGE_MODEL`.
+Generation requests one PNG at 1536 × 1024 with medium quality. This is a draft
+size, not a claim about the ad platform's accepted dimensions. Only the creative
+brief is sent to the image provider, not the browser session or credentials.
+
+If the provider is unavailable or unconfigured, the kit shows **Image needed**.
+You can attach a PNG up to 12 MB, or configure the provider and retry. Successful
+images are reused on retries; there is no automatic repeat purchase. API keys
+stay on the server and are never requested in the console or included in exports.
+
+Kits and images are stored locally in SQLite under `OPENXPLI_DATA_DIR` (default
+`~/.openxpli`). Browser observations are private account data; review a kit before
+sharing its exports. The live install is never needed for testing:
+
+```sh
+npm run build
+node tests/adopted.mjs
+node tests/kits.mjs
+node tests/kits-ui.mjs   # scratch data + headless Chrome, port 41201
+node tests/browser-flow.mjs
+node tests/browser-flow-ui.mjs # real profile contention + Continue flow, port 41202
+```
+
+The tests cover preparation, copy/image isolation, retries, missing providers,
+image upload, downloads, manual launch recording, and blocked automatic actions.
+The image API contract is tested with a mock; no API calls are billed by tests.
+
+## Existing measurement engine
+
+The sections below describe the earlier measurement/review machinery, retained
+for existing runs. It is not activated by the manual kit flow. Automatic browser
+execution and autonomy remain disabled until a later milestone.
 
 ## Goals come before experiments
 
@@ -58,7 +139,7 @@ That last rule is the point. Without it, a self-starting connector picks the
 candidate with the highest expected multiple every cycle — which means it picks
 whichever metric it can most easily move, and grades itself on that.
 
-Guardrails are recorded and checked at review. They are **not** read
+Guardrails are recorded, but review does not yet enforce measured guardrail results. They are **not** read
 automatically yet: that needs live bindings, and `resolveBinding` is still a
 stub returning synthetic readings.
 
@@ -82,8 +163,19 @@ always reports the metric it was actually measured against — even if the
 connector has been re-goaled since. Multiples only compound within one goal;
 the console refuses to blend across metrics and says so.
 
-Every **Connector** initializes in shadow mode with read-only permissions — nothing is
-changed until you accept an experiment, and autonomy beyond that is earned per-connector.
+The console separates **active annualized value** (approved, unreplaced changes)
+from **potential value** (finished wins awaiting approval). Rejected results,
+reopened runs, and regressed or reverted changes do not contribute to the active
+estimate. Replacement is scoped to the experiment's object and field; reverting
+a replacement can restore the preceding approved configuration. Historical
+adoptions and holdout reversions are counted separately, without adding recovery
+estimates to the active total. These are estimates from the declared value model,
+not realized savings; changes without a value model contribute no dollar estimate.
+
+To verify value reporting against an isolated scratch database:
+`npm run build && node tests/adopted.mjs`.
+
+Every **Connector** initializes in shadow mode with read-only permissions — account changes are made manually. Accepting a suggestion now prepares a kit.
 (`openxpli enroll`/`openxpli start` remain as power-user verbs for manual setups;
 `openxpli enroll --demo` seeds the dogfood connector.)
 
@@ -100,12 +192,13 @@ node dist/cli.js doctor
 - **One experiment per process at a time.** Default run: 7 days — 168 hourly reads vs control. End above ×1.00 and the variant is adopted; at or below, it dies and is never adopted.
 - **The hourly read is a data contract, not a cron contract.** `harvest` computes which observations are *due* and fills them, backfilling missed hours from sources that expose history. Unfillable hours are recorded as honest gaps. A sleeping laptop heals on wake.
 - **Ticks are model-free.** The hourly loop is deterministic code; an agent is involved only at the edges (scouting, proposing, repairing broken browser steps).
-- **Real scouting where a playbook exists.** For supported tools (first: ads.openai.com), `openxpli signin <connector>` opens a Chrome window to sign in once — the session lives in `~/.openxpli/browser-profile`, and OpenXPLI rides it **read-only**, never seeing credentials. Scouting then scrapes the live account state and has the model propose grounded candidates that cite what it actually saw. `openxpli rescout <connector>` (or the console's ↻ New suggestions) throws away the current proposals and scouts 3 fresh ones. Without a session or playbook, scouting falls back to template suggestions, honestly labeled.
+- **Real scouting where a playbook exists.** For supported tools (first: ads.openai.com), `openxpli signin <connector>` opens a Chrome window to sign in once — the session lives in `~/.openxpli/browser-profile`, and OpenXPLI rides it **read-only**, never seeing credentials. Scouting then scrapes the live account state and has the model propose grounded candidates that cite what it actually saw. `openxpli rescout <connector>` (or the console's ↻ New suggestions) queues browser learning and replaces proposals only after it succeeds. Supported connectors require a successful browser read; failed learning keeps previous suggestions. Tools without a playbook may show templates, which cannot produce an account-specific kit.
 - **The ledger is git.** Decision records are commits: diffable, portable, tamper-evident. Approval is a review; promotion is a merge.
-- **Winners are validated, not just declared.** When a variant wins and is promoted, a small share of traffic (default 5%) stays on the old control for a 14-day trailing holdout. If the advantage persists, the ledger record is amended **VALIDATED**; if it decays (48h sustained at or below ×1.00 exits early), it's amended **TRAILING REGRESSION** with revert recommended — so a lucky week never quietly becomes the new baseline.
+- **Legacy holdouts.** Older runs may have trailing holdouts. New engine runs use an in-run holdout arm; this is separate from manual kits and is not proof that an external rollback occurred.
 
 ## Layout
 
+- `src/kits.ts` — saved manual experiment kits, image generation, exports, and launch confirmations
 - `src/cli.ts` — verbs: `init`, `enroll`, `harvest`, `status`, `doctor`
 - `src/harvest.ts` — due-observation computation, backfill, finalize → ledger
 - `src/bindings.ts` — reading interface (API → CLI → browser resolution; `synthetic` included for end-to-end exercise)

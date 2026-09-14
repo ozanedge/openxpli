@@ -7,10 +7,13 @@ import { DEFAULT_VARIANT_SHARE } from "./paths.js";
 // this is both the experiment's split and the whole live traffic picture.
 // There is no cross-experiment composition left to assemble.
 
-export interface ConfigEntry {
+// An arm differs from control in exactly one field. Showing each arm's whole
+// configuration meant repeating every adopted value three times; the only
+// information in it was the one line that changed.
+export interface ArmDiff {
   field: string;
-  value: string;
-  inherited?: boolean; // carried in from an earlier adopted experiment
+  from: string;  // what control serves for this field
+  to: string;    // what this arm serves instead
 }
 
 export interface Arm {
@@ -18,11 +21,13 @@ export interface Arm {
   label: string;
   share: number;
   shareExact: boolean;
-  config: ConfigEntry[];
+  diff: ArmDiff | null;  // null on control — it IS the reference
+  verb: string;          // testing | live | re-testing
   note: string;
   multiple: number | null; // vs control, from the latest reading; control is 1.00 by definition
   raw: number | null;      // the absolute metric for this arm: baseline x multiple
   unit: string | null;
+  absent?: boolean;        // the slot exists, the arm does not — render N/A, not zero
 }
 
 export function splitFor(experimentId: string): Arm[] {
@@ -46,42 +51,47 @@ export function splitFor(experimentId: string): Arm[] {
 
   const base = e.baseline;
   const unit = e.baseline_unit ?? null;
-  const raw = (m: number | null) => (base != null && m != null ? base * m : null);
+  // For a lower-is-better metric the multiple is a reduction, so the absolute
+  // value divides rather than multiplies. Getting this backwards would show a
+  // CPC win as a cost increase.
+  const inv = !!e.baseline_inverse;
+  const raw = (m: number | null) => (base != null && m != null ? (inv ? base / m : base * m) : null);
 
   const v = e.share ?? DEFAULT_VARIANT_SHARE;
   const h = e.holdout_share ?? 0;
-  const inherited = (skip: string[]) =>
-    [...promoted].filter(([f]) => !skip.includes(f)).map(([field, value]) => ({ field, value, inherited: true }));
-
   const isAA = e.holdout_field === e.field && e.holdout_value === e.control_value;
-  const arms: Arm[] = [];
-  if (h > 0 && e.holdout_field) {
-    arms.push({
-      key: "holdout", label: "holdout", share: h, shareExact: true,
-      config: isAA
-        ? [...inherited([e.field]), { field: e.field, value: e.control_value }]
-        : [
-            { field: e.holdout_field, value: e.holdout_value ?? "" },
-            ...inherited([e.holdout_field, e.field]),
-            { field: e.field, value: e.control_value },
-          ],
-      note: isAA
-        ? "A/A — identical to control. Nothing has been adopted yet, so this arm re-tests the measurement: it should read ×1.00."
-        : `v(current--) — the configuration before \`${e.holdout_field}\` was adopted. If this arm wins, that change is reverted.`,
-      multiple: last?.holdout_multiple ?? null, raw: raw(last?.holdout_multiple ?? null), unit,
-    });
-  }
-  arms.push({
-    key: "control", label: "control", share: 1 - v - h, shareExact: e.share != null,
-    config: [...inherited([e.field]), { field: e.field, value: e.control_value }],
-    note: "v(current) — what is live today",
-    multiple: 1, raw: base ?? null, unit,
-  });
-  arms.push({
+
+  const variant: Arm = {
     key: "variant", label: "variant", share: v, shareExact: e.share != null,
-    config: [...inherited([e.field]), { field: e.field, value: e.variant_value }],
-    note: "v(current++) — the change under test",
+    diff: { field: e.field, from: e.control_value, to: e.variant_value },
+    verb: "testing", note: "v(current++)",
     multiple: last?.multiple ?? null, raw: raw(last?.multiple ?? null), unit,
-  });
+  };
+  const control: Arm = {
+    key: "control", label: "control", share: 1 - v - h, shareExact: e.share != null,
+    diff: null, verb: "live", note: "v(current) — every adopted change, unmodified",
+    multiple: 1, raw: base ?? null, unit,
+  };
+  const holdout: Arm = (h > 0 && e.holdout_field)
+    ? {
+        key: "holdout", label: "holdout", share: h, shareExact: true,
+        diff: isAA ? null : {
+          field: e.holdout_field,
+          from: promoted.get(e.holdout_field) ?? e.holdout_value ?? "",
+          to: e.holdout_value ?? "",
+        },
+        verb: isAA ? "A/A" : "rolled back",
+        note: isAA
+          ? "Identical to control. Nothing adopted yet, so this arm re-tests the measurement: it should read ×1.00."
+          : `The configuration before \`${e.holdout_field}\` was adopted. If this arm wins, that change is reverted.`,
+        multiple: last?.holdout_multiple ?? null, raw: raw(last?.holdout_multiple ?? null), unit,
+      }
+    : {
+        key: "holdout", label: "holdout", share: 0, shareExact: true,
+        diff: null, verb: "none",
+        note: "No holdout arm — this experiment predates the three-arm model.",
+        multiple: null, raw: null, unit, absent: true,
+      };
+  const arms: Arm[] = [variant, control, holdout];
   return arms;
 }

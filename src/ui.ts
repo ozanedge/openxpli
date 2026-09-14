@@ -1,4 +1,5 @@
 import http from "node:http";
+import { deleteConnector } from "./connectors.js";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +15,11 @@ import { autonomyStats, setAutonomy } from "./autonomy.js";
 import { ratifyGoal, regoal, alternativeGoals, ratifiedGoal, parseGuardrails, setGoalGuardrails, setPolicy } from "./goals.js";
 import { outcomeCounts, ensureOutcomesBackfilled } from "./outcomes.js";
 import { splitFor } from "./traffic.js";
+import { annualValue, type ValueModel } from "./value.js";
+import { activeLearningJob, signalLearningJob } from "./learning-jobs.js";
+import { playbookFor, startSignin } from "./browser-scout.js";
+import { listKits, getKit, requestKit, retryKit, attachKitImage, recordKitLaunch, kitHtml, kitText, kitImage } from "./kits.js";
+import { adoptedState, type AdoptedState } from "./adopted.js";
 
 // Normal CDF via the Abramowitz–Stegun erf approximation.
 function phi(z: number): number {
@@ -63,7 +69,7 @@ function experiments(db: ReturnType<typeof openDb>, days: number) {
   ).all(since) as Record<string, unknown>[];
   for (const e of exps) {
     e.series = db.prepare(
-      "SELECT hour, multiple, sigma, phase, missing FROM observations WHERE experiment_id = ? ORDER BY hour"
+      "SELECT hour, multiple, holdout_multiple, sigma, phase, missing FROM observations WHERE experiment_id = ? ORDER BY hour"
     ).all(e.id);
     e.holdout = db.prepare("SELECT * FROM holdouts WHERE experiment_id = ?").get(e.id as string) ?? null;
     e.run_hours = Math.max(1, Math.round(((e.ends_at as number) - (e.started_at as number)) / 3_600_000));
@@ -108,11 +114,12 @@ function processes(db: ReturnType<typeof openDb>) {
        FROM experiments e WHERE e.process_id = ? ORDER BY e.started_at DESC LIMIT 1`
     ).get(p.id as string) ?? null;
     p.latest = latest;
+    p.policy_raw = p.policy;
     p.policy = JSON.parse((p.policy as string) || "{}");
-    p.candidates = listCandidates(p.id as string);
+    p.candidates = listCandidates(p.id as string).map((c) => ({ ...c, power: c.power ? JSON.parse(c.power) : null }));
     p.experiments = db.prepare(
       `SELECT e.id, e.status, e.field, e.control_value, e.variant_value, e.started_at, e.ends_at,
-              e.final_multiple, e.record_id, e.launch_note, e.share, e.goal_id, e.holdout_share, e.holdout_field, e.holdout_value, e.object, e.baseline, e.baseline_unit,
+              e.final_multiple, e.record_id, e.launch_note, e.share, e.goal_id, e.holdout_share, e.holdout_field, e.holdout_value, e.object, e.baseline, e.baseline_unit, e.baseline_inverse, e.value_basis, e.power,
               (SELECT multiple FROM observations WHERE experiment_id = e.id AND missing = 0 ORDER BY hour DESC LIMIT 1) AS last_multiple,
               (SELECT status FROM holdouts WHERE experiment_id = e.id) AS holdout_status
        FROM experiments e WHERE e.process_id = ? ORDER BY e.started_at DESC`
@@ -124,9 +131,18 @@ function processes(db: ReturnType<typeof openDb>) {
     p.goal = g ? { ...g, guardrails: parseGuardrails(g.guardrails) } : null;
     p.goal_options = alternativeGoals(p.id as string).map((o) => ({ ...o, guardrails: parseGuardrails(o.guardrails) }));
     p.outcomes = outcomeCounts(p.id as string);
+    p.kits = listKits(p.id as string);
+    p.execution_mode = "manual";
+    p.can_learn = !!playbookFor(p.tool as string);
+    const browserJob = activeLearningJob(p.id as string);
+    const learning = db.prepare("SELECT content FROM knowledge WHERE source_id = ? AND key = 'learning-status'").get(p.id) as { content: string } | undefined;
+    p.learning = learning ? { ...JSON.parse(learning.content), active: !!browserJob, kind: browserJob?.kind ?? null,
+      continue_requested: !!browserJob?.continue_requested, cancel_requested: !!browserJob?.cancel_requested } : null;
+    p.adopted = adoptedState(p.id as string);
     p.experiments = (p.experiments as Record<string, unknown>[]).map((e) => ({
       ...e,
       split: splitFor(e.id as string),
+      power: e.power ? JSON.parse(e.power as string) : null,
       outcome: db.prepare(
         `SELECT o.verdict, o.winner, o.final_multiple, o.review_state, o.reviewed_at, o.holdout_state, o.holdout_multiple,
                 o.goal_id, o.record_id, o.decided_at, g.metric AS goal_metric, g.inverse AS goal_inverse,
@@ -136,7 +152,27 @@ function processes(db: ReturnType<typeof openDb>) {
          LEFT JOIN holdouts h ON h.experiment_id = o.experiment_id
          WHERE o.experiment_id = ?`
       ).get(e.id as string) ?? null,
-    }));
+    })).map((e) => {
+      const er = e as Record<string, unknown>;
+      const o = e.outcome as Record<string, unknown> | null;
+      const vm = (JSON.parse((p.policy_raw as string) || "{}") as { value_model?: ValueModel }).value_model ?? null;
+      const adoption = (p.adopted as AdoptedState).rows.find((r) => r.experiment_id === er.id);
+      return {
+        ...e,
+        value_state: adoption?.state === "live" ? "active" : adoption?.state === "pending" ? "potential" : "historical",
+        annual_value: o
+          ? annualValue(
+              (o.winner as "variant" | "control" | "holdout" | null) ??
+                (o.verdict === "won" ? "variant" : "control"),
+              o.final_multiple as number | null,
+              o.holdout_multiple as number | null,
+              o.goal_metric ? { metric: o.goal_metric as string, inverse: Number(o.goal_inverse) } : null,
+              vm,
+              er.value_basis as number | null
+            )
+          : null,
+      };
+    });
   }
   return procs;
 }
@@ -156,27 +192,46 @@ export function ui(port: number, openBrowser: boolean): void {
           return res.end(JSON.stringify({ error: "bad or missing token" }));
         }
         let raw = "";
-        req.on("data", (c) => (raw += c));
+        let tooLarge = false;
+        req.on("data", (c) => {
+          if (tooLarge) return;
+          raw += c;
+          if (Buffer.byteLength(raw) > 17 * 1024 * 1024) {
+            tooLarge = true;
+            res.writeHead(413, { "content-type": "application/json" });
+            res.end(JSON.stringify({ error: "Request too large" }));
+          }
+        });
         req.on("end", () => {
+          if (tooLarge) return;
           try {
             const b = JSON.parse(raw || "{}");
             let msg: string;
-            if (url.pathname === "/api/approve") msg = approve(b.record);
+            if (url.pathname === "/api/signin/continue") { msg = signalLearningJob(b.id, "continue"); }
+            else if (url.pathname === "/api/learning/cancel") { msg = signalLearningJob(b.id, "cancel"); }
+            else if (url.pathname === "/api/signin") { msg = startSignin(b.id); }
+            else if (url.pathname === "/api/kits/prepare") { const kit = requestKit(b.candidate); json(res, { ok: true, kit }); return; }
+            else if (url.pathname === "/api/kits/retry") { json(res, { ok: true, kit: retryKit(b.id) }); return; }
+            else if (url.pathname === "/api/kits/image") {
+              if (typeof b.image !== "string" || !/^[A-Za-z0-9+/]+={0,2}$/.test(b.image)) throw new Error("Upload a PNG image");
+              json(res, { ok: true, kit: attachKitImage(b.id, Buffer.from(b.image, "base64")) }); return;
+            }
+            else if (url.pathname === "/api/kits/launched") { json(res, { ok: true, kit: recordKitLaunch(b.id, b.note, b.confirmed) }); return; }
+            else if (url.pathname === "/api/approve") msg = approve(b.record);
             else if (url.pathname === "/api/reject") msg = reject(b.record);
             else if (url.pathname === "/api/extend") msg = extend(b.experiment, Number(b.days ?? 7));
             else if (url.pathname === "/api/kill") { msg = kill(b.experiment); harvest(); }
             else if (url.pathname === "/api/enroll") msg = enrollProcess(b);
             else if (url.pathname === "/api/start") { msg = startExperiment(b.process, b.field, b.control, b.variant, Number(b.days ?? 7), "running", b.share != null ? Number(b.share) : undefined, b.object); harvest(); }
+            else if (url.pathname === "/api/connectors/delete") msg = deleteConnector(b.id, b.confirmed);
             else if (url.pathname === "/api/add") { const r = addSource(b.id, b.tool); msg = r.message; }
-            else if (url.pathname === "/api/accept") { msg = acceptCandidate(b.candidate); harvest(); }
+            else if (url.pathname === "/api/accept") { msg = acceptCandidate(b.candidate); }
             else if (url.pathname === "/api/dismiss") msg = dismissCandidate(b.candidate);
             else if (url.pathname === "/api/rescout") {
-              const db2 = openDb();
-              db2.prepare("UPDATE candidates SET status = 'dismissed' WHERE source_id = ? AND status = 'proposed'").run(b.id);
-              const busy = db2.prepare("SELECT 1 FROM experiments WHERE process_id = ? AND status IN ('running','launching')").get(b.id);
-              if (!busy) db2.prepare("UPDATE processes SET status = 'shadow', created_at = ? WHERE id = ?").run(Date.now(), b.id);
+              const connector = db.prepare("SELECT tool FROM processes WHERE id = ?").get(b.id) as { tool: string } | undefined;
+              if (!connector || !playbookFor(connector.tool)) throw new Error("Browser learning is not supported for this connector");
               spawnDetachedScout(b.id);
-              msg = `rescouting ${b.id} — fresh suggestions shortly`;
+              msg = `Learning queued for ${b.id}. Existing suggestions are kept until the new observations are ready.`;
             }
             else if (url.pathname === "/api/autonomy") { msg = setAutonomy(b.id, b.level); harvest(); }
             else if (url.pathname === "/api/ratify") { msg = ratifyGoal(b.goal); maybeAnalyze(); }
@@ -192,7 +247,22 @@ export function ui(port: number, openBrowser: boolean): void {
         });
         return;
       }
-      if (url.pathname === "/") {
+      if (url.pathname === "/api/kits/file") {
+        const id = url.searchParams.get("id") || "";
+        const name = url.searchParams.get("name");
+        const kit = getKit(id);
+        let body: string | Buffer, type: string;
+        if (name === "kit.html") { body = kitHtml(kit); type = "text/html; charset=utf-8"; }
+        else if (name === "copy.txt") { body = kitText(kit); type = "text/plain; charset=utf-8"; }
+        else if (name === "kit.json") { body = JSON.stringify(kit, null, 2); type = "application/json"; }
+        else if (name === "creative.png") {
+          const image = kitImage(id);
+          if (!image) { res.writeHead(404); res.end("No image attached"); return; }
+          body = image; type = "image/png";
+        } else { res.writeHead(404); res.end(); return; }
+        res.writeHead(200, { "content-type": type, "content-disposition": `${name === "creative.png" && url.searchParams.get("preview") === "1" ? "inline" : "attachment"}; filename="${name}"`, "x-content-type-options": "nosniff", "cache-control": "no-store" });
+        res.end(body);
+      } else if (url.pathname === "/") {
         res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
         res.end(readFileSync(CONSOLE_HTML, "utf8").replace("__OPENXPLI_TOKEN__", token));
       } else if (url.pathname === "/api/export.csv") {

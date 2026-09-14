@@ -1,7 +1,4 @@
 import { openDb, type ProcessRow } from "./db.js";
-import { openOutcomes } from "./outcomes.js";
-import { scout, listCandidates, acceptCandidate } from "./scout.js";
-import { approve } from "./review.js";
 import { ratifiedGoal } from "./goals.js";
 
 // The autonomy ladder is earned, then explicitly enabled by a human:
@@ -44,6 +41,7 @@ export function autonomyStats(processId: string): AutonomyStats {
 const LEVELS = ["shadow", "human-gated", "auto-start", "auto-merge"];
 
 export function setAutonomy(processId: string, level: string): string {
+  if (level === "auto-start" || level === "auto-merge") throw new Error("Autonomy is not available in the manual milestone. Prepare kits and launch experiments yourself first.");
   if (!LEVELS.includes(level)) throw new Error(`autonomy: level must be one of ${LEVELS.join("|")}`);
   const db = openDb();
   const p = db.prepare("SELECT * FROM processes WHERE id = ?").get(processId) as ProcessRow | undefined;
@@ -62,42 +60,8 @@ export function setAutonomy(processId: string, level: string): string {
     : `${processId} dialed down to ${level}`;
 }
 
-// Called from every harvest: connectors with earned-and-enabled autonomy act.
+// Legacy hook retained for harvest; execution is disabled in the manual milestone.
 export function runAutonomy(): void {
-  const db = openDb();
-  const procs = db.prepare(
-    "SELECT * FROM processes WHERE autonomy IN ('auto-start','auto-merge') AND status != 'reverted'"
-  ).all() as ProcessRow[];
-
-  for (const p of procs) {
-    // No north star, no autonomy. A self-starting connector without a ratified
-    // goal would pick whichever candidate it thinks it can move most and call
-    // that winning — the exact failure goals exist to prevent.
-    if (!ratifiedGoal(p.id)) {
-      console.log(`autonomy: ${p.id} has no ratified goal — skipping (ratify one to resume)`);
-      continue;
-    }
-    // Fully autonomous: merge this connector's open winning records first.
-    if (p.autonomy === "auto-merge") {
-      for (const o of openOutcomes(p.id)) {
-        if (!o.record_id) continue;
-        try { console.log(`autonomy: auto-merged ${o.record_id} (${p.id}) — ${approve(o.record_id)}`); }
-        catch { /* raced or already resolved */ }
-      }
-    }
-    // Both levels: keep the loop turning — start the next best candidate.
-    const running = db.prepare(
-      "SELECT 1 FROM experiments WHERE process_id = ? AND status = 'running'"
-    ).get(p.id);
-    if (running) continue;
-    let cands = listCandidates(p.id);
-    if (!cands.length) { scout(p.id); cands = listCandidates(p.id); }
-    // Only candidates that measure the goal are eligible; ranking by expected
-    // multiple across mixed metrics is how metric-shopping starts.
-    cands = cands.filter((c) => c.metric === p.metric && c.inverse === p.inverse);
-    if (!cands.length) continue;
-    const best = cands.slice().sort((a, b) => b.expected_multiple - a.expected_multiple)[0];
-    try { console.log(`autonomy: auto-started (${p.autonomy}) — ${acceptCandidate(best.id)}`); }
-    catch { /* invariant raced */ }
-  }
+  // Existing saved autonomy levels cannot bypass the manual milestone.
+  // Harvest may observe existing experiments, but cannot prepare, start or merge new ones.
 }

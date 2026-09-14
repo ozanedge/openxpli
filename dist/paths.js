@@ -40,3 +40,17 @@ export const DEFAULT_HOLDOUT_ARM_SHARE = 0.20;
 export const AA_HOLDOUT = process.env.OPENXPLI_AA_HOLDOUT !== "0";
 export const VALIDATION_HOURS = 336; // 14 days of hourly reads vs holdout
 export const REGRESS_WINDOW_HOURS = 48; // sustained-drop early-exit window
+// ── the browser OpenXPLI works in ──
+// A real Chrome profile the user signs into themselves, so SSO, the password
+// manager and 2FA all behave normally. OpenXPLI attaches to it over the
+// DevTools protocol instead of driving a throwaway profile. Borrowing the
+// everyday Chrome profile is not possible: Chrome refuses remote debugging on
+// the default profile directory, and binds cookies to the profile that created
+// them — a copied cookie jar is wiped on first launch.
+export const BROWSER_PROFILE = join(DATA_DIR, "browser-profile");
+export const CHROME_PORT = Number(process.env.OPENXPLI_CHROME_PORT ?? 41200);
+export const CHROME_BINARY = process.env.OPENXPLI_CHROME
+    ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+// "attach" (default): work in the user's signed-in browser. "launch": drive a
+// private context per task, which has no session — kept for fixtures and CI.
+export const BROWSER_MODE = process.env.OPENXPLI_BROWSER_MODE === "launch" ? "launch" : "attach";

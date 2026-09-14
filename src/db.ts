@@ -31,6 +31,9 @@ export interface ExperimentRow {
   object: string | null;         // the thing that was duplicated to run this (an ad, a campaign)
   baseline: number | null;       // the control arm's absolute metric value — every multiple hangs off this
   baseline_unit: string | null;  // '%', '$' or '' — how to render the raw number
+  baseline_inverse: number | null; // 1 = lower is better, so raw = baseline / multiple
+  value_basis: number | null;      // $/yr flowing through THIS object, for its own dollar figure
+  power: string | null;            // JSON: whether this run can resolve what it expects
 }
 
 export interface ObservationRow {
@@ -171,6 +174,26 @@ export function openDb(): Database.Database {
       content TEXT NOT NULL, updated_at INTEGER NOT NULL,
       PRIMARY KEY (source_id, key)
     );`);
+  db.exec(`CREATE TABLE IF NOT EXISTS kits (
+    id TEXT PRIMARY KEY, candidate_id TEXT NOT NULL UNIQUE REFERENCES candidates(id),
+    process_id TEXT NOT NULL REFERENCES processes(id), goal_id TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'queued', content TEXT, image BLOB, error TEXT,
+    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+    launched_at INTEGER, launch_note TEXT
+  );`);
+  db.exec(`CREATE TABLE IF NOT EXISTS browser_requests (
+    sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE,
+    pid INTEGER NOT NULL, created_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS learning_jobs (
+    id TEXT PRIMARY KEY, source_id TEXT NOT NULL REFERENCES processes(id),
+    kind TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'queued', pid INTEGER,
+    continue_requested INTEGER NOT NULL DEFAULT 0, cancel_requested INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS one_learning_job_per_connector ON learning_jobs(source_id)
+    WHERE status IN ('queued','running');`);
+  ensureColumn(db, "candidates", "evidence", "TEXT");
   // In-place upgrades for databases created by older versions.
   ensureColumn(db, "observations", "phase", "TEXT NOT NULL DEFAULT 'run'");
   ensureColumn(db, "experiments", "record_id", "TEXT");
@@ -183,6 +206,11 @@ export function openDb(): Database.Database {
   ensureColumn(db, "experiments", "object", "TEXT");
   ensureColumn(db, "experiments", "baseline", "REAL");
   ensureColumn(db, "experiments", "baseline_unit", "TEXT");
+  ensureColumn(db, "experiments", "baseline_inverse", "INTEGER");
+  ensureColumn(db, "experiments", "value_basis", "REAL");
+  ensureColumn(db, "experiments", "power", "TEXT");
+  ensureColumn(db, "candidates", "power", "TEXT");
+  ensureColumn(db, "candidates", "run_hours", "INTEGER");
   ensureColumn(db, "observations", "holdout_multiple", "REAL");
   ensureColumn(db, "outcomes", "winner", "TEXT");
   return db;

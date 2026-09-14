@@ -1,7 +1,7 @@
 import { openDb } from "./db.js";
 import { HOUR_MS, DEFAULT_HOLDOUT_ARM_SHARE, AA_HOLDOUT } from "./paths.js";
 import { ratifiedGoal, adoptGoal } from "./goals.js";
-const AUTONOMY = ["shadow", "human-gated", "auto-merge"];
+const AUTONOMY = ["shadow", "human-gated"];
 export function enrollProcess(o) {
     if (!o.id || !/^[a-z0-9][a-z0-9._\/-]{2,80}$/i.test(o.id))
         throw new Error("enroll: --id required (letters/digits/./_/-//, e.g. klaviyo/cart-abandon-01)");
@@ -31,7 +31,7 @@ export function enrollProcess(o) {
     const g = adoptGoal(o.id, o.metric, o.inverse ? 1 : 0, o.guardrails ?? [], "Specified by the operator at enroll.");
     return `enrolled ${o.id} (${o.tool}, goal: ${o.metric}${o.inverse ? " 1/x" : ""} -> ${g}, autonomy: ${autonomy})`;
 }
-export function startExperiment(processId, field, control, variant, days = 7, status = "running", share, object, baseline, baselineUnit) {
+export function startExperiment(processId, field, control, variant, days = 7, status = "running", share, object, baseline, baselineUnit, baselineInverse, valueBasis, power) {
     if (!field || !control || !variant)
         throw new Error("start: --field, --control, and --variant are required");
     if (!(days >= 1 && days <= 28))
@@ -80,8 +80,8 @@ export function startExperiment(processId, field, control, variant, days = 7, st
     if (hShare + vShare >= 1)
         throw new Error(`start: holdout ${hShare} + variant ${vShare} leaves nothing for control`);
     db.prepare(`INSERT INTO experiments (id, process_id, field, control_value, variant_value, started_at, ends_at, status,
-       goal_id, share, holdout_field, holdout_value, holdout_share, object, baseline, baseline_unit)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(id, processId, field, control, variant, now, now + days * 24 * HOUR_MS, status, goal.id, vShare, prev ? prev.field : (aa ? field : null), prev ? prev.control_value : (aa ? control : null), hShare || null, object?.trim() || null, baseline ?? null, baselineUnit ?? null);
+       goal_id, share, holdout_field, holdout_value, holdout_share, object, baseline, baseline_unit, baseline_inverse, value_basis, power)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(id, processId, field, control, variant, now, now + days * 24 * HOUR_MS, status, goal.id, vShare, prev ? prev.field : (aa ? field : null), prev ? prev.control_value : (aa ? control : null), hShare || null, object?.trim() || null, baseline ?? null, baselineUnit ?? null, baselineInverse ? 1 : 0, valueBasis ?? null, power ? JSON.stringify(power) : null);
     const arms = prev
         ? `3 arms — holdout ${Math.round(hShare * 100)}% (${prev.field}: ${prev.control_value}), control ${Math.round((1 - hShare - vShare) * 100)}%, variant ${Math.round(vShare * 100)}%`
         : aa
