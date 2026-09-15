@@ -2,6 +2,7 @@
 // login page sat behind a bot check that never cleared, every navigation error
 // was swallowed, and the signed-out marketing page was ingested as account data.
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -129,6 +130,23 @@ assert.ok(LAUNCH_FLAGS.includes("--enable-automation"), "the CDP attach needs it
 assert.ok(LAUNCH_FLAGS.includes("--disable-blink-features=AutomationControlled"),
   "without it navigator.webdriver is true and Turnstile spins forever");
 
+// The console runs under launchd, whose PATH is /usr/bin:/bin:/usr/sbin:/sbin.
+// A CLI in a user or Homebrew prefix is invisible there, and the failure used
+// to surface as "check the Claude CLI sign-in" — which sent you after the wrong
+// problem entirely. Resolve by path, and never ignore an explicit override.
+const { claudeBinary } = await import("../dist/browser-scout.js");
+const prevClaude = process.env.OPENXPLI_CLAUDE;
+const prevPath = process.env.PATH;
+process.env.PATH = "/usr/bin:/bin:/usr/sbin:/sbin";          // the launchd PATH
+delete process.env.OPENXPLI_CLAUDE;
+const resolved = claudeBinary();
+assert.ok(resolved.startsWith("/"), "the CLI must resolve to an absolute path, not a PATH lookup");
+assert.ok(existsSync(resolved), `${resolved} must exist`);
+process.env.OPENXPLI_CLAUDE = "/definitely/not/here/claude";
+assert.throws(() => claudeBinary(), /does not exist/, "a bad override must fail loudly, not fall back");
+if (prevClaude === undefined) delete process.env.OPENXPLI_CLAUDE; else process.env.OPENXPLI_CLAUDE = prevClaude;
+process.env.PATH = prevPath;
+
 // Sign-in finishes when the tool's own pages answer. The user should not have
 // to confirm what the page already shows — but this must never fire early, or
 // the window closes mid-authentication.
@@ -180,4 +198,4 @@ await new Promise((r) => stuck.close(r));
 const { BROWSER_MODE } = await import("../dist/paths.js");
 assert.equal(BROWSER_MODE, "launch", "tests must not start the user's browser");
 
-console.log("PASS: sign-in URL, challenge detection, signed-out-page refusal, auth-origin bounce, raw-URL playbook, challenge markers, sign-in detection, headless user-agent, windowless-browser recovery, and scoped bot-state reset");
+console.log("PASS: sign-in URL, challenge detection, signed-out-page refusal, auth-origin bounce, raw-URL playbook, challenge markers, CLI resolution, sign-in detection, headless user-agent, windowless-browser recovery, and scoped bot-state reset");

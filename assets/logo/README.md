@@ -1,10 +1,11 @@
-# OpenXPLI logo
+# OpenXPLI identity
 
-The mark is a loop: an inner pass that has closed and settled, and an outer
-pass still running, ending in a head that points the way it is travelling.
-The dot at the centre is the thing under test. It is drawn on a 24-unit grid
-with the loop centred on (12, 12) and shifted 0.22 units down, so the head's
-overshoot reads optically centred.
+The mark is a **tapered spiral**: a loop that comes back round, but wider and
+further out than it started. It is the product in one shape — an experimentation
+engine does not repeat a cycle, it advances one. The ribbon begins thin at the
+tail, gains weight as it travels, and resolves into a head that points on into
+the next pass. The solid dot at the centre is the thing under test, held steady
+while the loop moves around it.
 
 ## Files
 
@@ -13,52 +14,47 @@ overshoot reads optically centred.
 | `openxpli-mark.svg` | Primary mark. Light backgrounds. |
 | `openxpli-mark-inverse.svg` | Dark backgrounds. |
 | `openxpli-mark-mono.svg` | One colour, inherits `currentColor`. Print, stamps, embroidery. |
-| `openxpli-icon.svg` | Small-size cut: one pass, heavier stroke, no inner ring. Use at or below 20px. |
-| `openxpli-favicon.svg` | The small cut on a near-black tile. Holds on light and dark tab bars. |
-| `openxpli-lockup-horizontal.svg` | Mark + wordmark, one line. Needs Inter. |
-| `openxpli-lockup-stacked.svg` | Mark over wordmark. Needs Inter. |
-| `openxpli-favicon-16.png` · `-32.png` | Raster favicons. |
-| `openxpli-apple-touch-icon-180.png` | iOS home screen. |
-| `openxpli-icon-512.png` | Store / social / README hero. |
-| `openxpli-mark-256.png` | Transparent raster mark. |
-| `openxpli-lockup-*.png` | Lockups at 3x, type already outlined into pixels. |
+| `openxpli-icon.svg` | Same geometry on its native 24-unit grid. |
+| `openxpli-favicon.svg` | Inverse mark inset on an ink tile. Holds on light and dark tab bars. |
+| `openxpli-lockup-horizontal.svg` | Mark + wordmark on one line. |
+| `openxpli-lockup-horizontal-inverse.svg` | The same for dark surfaces. |
+| `openxpli-lockup-stacked.svg` | Centred, wordmark beneath the mark. |
+| PNG exports | 16/32 favicons, 180 touch icon, 512 app icon, 256 mark, 8× lockups. |
+| `preview.html`, `openxpli-brand-preview.png` | The identity at every size, light and dark. |
 
-## Colour
+The wordmark is Helvetica Neue Medium converted to outlines, so no lockup
+depends on an installed font, a network request or an external stylesheet.
+Keep the product name **OpenXPLI** in prose; lowercase **openxpli** is the
+visual wordmark.
 
-| Role | Hex | Notes |
-| --- | --- | --- |
-| Live pass, head | `#0072BE` | `--azure-deep` in the console |
-| Live pass on dark | `#3FAEFF` | `--azure` lightened for contrast on `#1D1D1D` |
-| Settled pass | `#6F6F6F` | `--text-2`; 45% white on dark, 38% `currentColor` in mono |
-| Object | `#1D1D1D` | `--text`; white on dark |
+## Colours
 
-Do not recolour the live pass to anything but azure — it is the only element
-carrying brand colour, and the mark stops meaning anything if the two passes
-read as the same weight.
+| Role | Colour |
+| --- | --- |
+| Ribbon | `#0072BE` |
+| Object under test | `#151515` |
+| Ribbon on dark surfaces | `#3FAEFF` |
+| Object on dark surfaces | `#FFFFFF` |
+| Favicon tile | `#101418` |
 
-## Sizes
+## Geometry
 
-- Full mark: **20px minimum**. Below that the settled pass closes up against
-  the centre dot and you lose the second ring — switch to `openxpli-icon.svg`.
-- Horizontal lockup: **96px wide minimum**.
-- Stacked lockup: **44px wide minimum**.
+Drawn on a 24-unit grid, centred on (12, 12).
 
-## Clear space
+| | |
+| --- | --- |
+| Ribbon radius | 6.3 → 8.6 (advances 2.3 units per turn) |
+| Ribbon width | 2.6 → 4.0 |
+| Sweep | −18° to 271°, clockwise |
+| Head | 5.05 long, 3.30 half-width — 1.65× the ribbon at its widest |
+| Object | radius 2.80 |
 
-Keep clear space on all sides equal to **half the mark's height**. For the
-lockups, measure from the mark, not the wordmark's ascender.
+**The counter is the constraint.** The clear space between the object and the
+ribbon's inner edge is what fails first as the mark shrinks, and it is tightest
+at the thin end of the taper: 2.20 units, about 1.5px at 16px. Every other
+number is tuned around holding that. Changing the radii, the ribbon width or the
+object without rechecking it will silently clog the mark at small sizes.
 
-## Wordmark
-
-Inter 700, tracked `-0.022em`. The lockup SVGs reference Inter by name and
-will fall back to the system sans if it is not installed; use the PNGs where
-you cannot guarantee the font.
-
-## Don't
-
-- Don't rotate the mark. The head's position is the reading — turn it and the
-  loop points somewhere meaningless.
-- Don't add a second head to the inner pass.
-- Don't put the full mark on a busy photograph; use the favicon tile.
-- Don't rebuild the head as a stroke with a `marker-end`; it is a filled
-  triangle sized against the arc, and markers will not match it.
+Because one ribbon and one object carry the whole idea, there is no separate
+small-size cut — the primary mark is legible down to 16px. Do not add gradients,
+shadows, outlines, a second ring, or any detail inside the counter.

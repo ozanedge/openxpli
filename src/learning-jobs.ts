@@ -11,6 +11,47 @@ export interface LearningJob {
   pid: number | null; continue_requested: number; cancel_requested: number;
   created_at: number; updated_at: number;
 }
+// Whether this connector's tool is signed in, recorded when we actually see it:
+// the sign-in window reaching the account, or a read that returned authenticated
+// pages. Cheap to read on every poll, unlike asking the browser.
+export function setSignedIn(sourceId: string, at: number | null): void {
+  const db = openDb();
+  try {
+    if (at === null) db.prepare("DELETE FROM knowledge WHERE source_id = ? AND key = 'signed-in'").run(sourceId);
+    else db.prepare("INSERT OR REPLACE INTO knowledge (source_id, key, kind, content, updated_at) VALUES (?, 'signed-in', 'status', ?, ?)")
+      .run(sourceId, JSON.stringify({ at }), at);
+  } finally { db.close(); }
+}
+export function signedInAt(sourceId: string): number | null {
+  const db = openDb();
+  try {
+    const row = db.prepare("SELECT content FROM knowledge WHERE source_id = ? AND key = 'signed-in'").get(sourceId) as { content: string } | undefined;
+    return row ? (JSON.parse(row.content) as { at: number }).at : null;
+  } catch { return null; } finally { db.close(); }
+}
+
+// A session belongs to the login, not to the connector. Every connector for a
+// tool shares one browser profile and therefore one sign-in, so signing in for
+// any of them signs in for all of them — and a second connector on the same
+// tool must never be told to sign in again.
+export function signedInForTool(tool: string): number | null {
+  const db = openDb();
+  try {
+    const row = db.prepare(`SELECT MAX(json_extract(k.content, '$.at')) AS at
+      FROM knowledge k JOIN processes p ON p.id = k.source_id
+      WHERE k.key = 'signed-in' AND p.tool = ?`).get(tool) as { at: number | null } | undefined;
+    return row?.at ?? null;
+  } catch { return null; } finally { db.close(); }
+}
+// Losing the session loses it for the whole tool, for the same reason.
+export function clearSignedInForTool(tool: string): void {
+  const db = openDb();
+  try {
+    db.prepare(`DELETE FROM knowledge WHERE key = 'signed-in' AND source_id IN
+      (SELECT id FROM processes WHERE tool = ?)`).run(tool);
+  } finally { db.close(); }
+}
+
 export function writeLearningStatus(sourceId: string, state: string, message: string, jobId?: string): void {
   const db = openDb();
   try {
@@ -122,7 +163,9 @@ export async function runLearningJob(id: string, handlers?: LearningJobHandlers)
       await handlers.signin(job.source_id, {
         cancelled, onWaiting: waiting,
         onOpened: () => status("signin", "Sign in in the OpenXPLI Chrome window. It closes itself as soon as you are in — or click ‘I’m signed in — continue’ here."),
-        onSignedIn: () => status("signin", "Signed in. Closing the window and reading your account."),
+        // A distinct state, not "signin" again: once the sign-in is recognised
+        // the card must stop asking for one.
+        onSignedIn: () => { setSignedIn(job.source_id, Date.now()); status("signed-in", "Signed in. Closing the window and reading your account."); },
         continued: () => !!getLearningJob(id).continue_requested,
       });
     }
@@ -130,6 +173,9 @@ export async function runLearningJob(id: string, handlers?: LearningJobHandlers)
     status("learning", "Reading the account, then preparing grounded suggestions.");
     await handlers.learn(job.source_id, { cancelled, onWaiting: waiting, onOpened: () => status("learning", "Reading the current account through the browser.") });
     if (cancelled()) throw new BrowserCancelled();
+    // A read that returned pages proves the session works, whether it came from
+    // an interactive sign-in or an imported profile.
+    setSignedIn(job.source_id, Date.now());
     status("ready", "Account observations saved. Review the grounded suggestions below.");
     const connection = openDb();
     try { connection.prepare("UPDATE learning_jobs SET status = 'done', updated_at = ? WHERE id = ?").run(Date.now(), id); }
@@ -137,6 +183,13 @@ export async function runLearningJob(id: string, handlers?: LearningJobHandlers)
   } catch (e) {
     const wasCancelled = e instanceof BrowserCancelled || cancelled();
     const message = String(e instanceof Error ? e.message : e);
+    if (/NEED_SIGNIN/.test(String(e instanceof Error ? e.message : e))) {
+      const connection = openDb();
+      let tool: string | undefined;
+      try { tool = (connection.prepare("SELECT tool FROM processes WHERE id = ?").get(job.source_id) as { tool: string } | undefined)?.tool; }
+      finally { connection.close(); }
+      if (tool) clearSignedInForTool(tool); else setSignedIn(job.source_id, null);
+    }
     const state = wasCancelled ? "cancelled" : /SECURITY_VERIFICATION/.test(message) ? "verification-blocked" : /NEED_SIGNIN/.test(message) ? "needs-signin" : e instanceof BrowserBusy ? "browser-busy" : "failed";
     status(state, wasCancelled ? "Browser task cancelled. Previous observations and suggestions are kept."
       : state === "needs-signin" ? "The saved session needs sign-in. Open Chrome, sign in, then use Continue."

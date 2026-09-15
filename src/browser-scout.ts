@@ -1,9 +1,10 @@
+import { readAdRows, type AdEvidence } from "./kit-evidence.js";
 import { chromium, type Page, type BrowserContext } from "playwright-core";
-import { execFile } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import { openDb } from "./db.js";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { rmSync, statSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -213,10 +214,53 @@ export function startSignin(sourceId: string): string {
 }
 
 // ── model helper ──
+// The console runs under launchd, whose PATH is /usr/bin:/bin:/usr/sbin:/sbin —
+// so a CLI installed in a user or Homebrew prefix is invisible to it. Resolve
+// the binary by path rather than trusting PATH, and hand the child a PATH that
+// can find whatever it shells out to.
+const RICH_PATH = [
+  join(homedir(), ".local", "bin"), "/opt/homebrew/bin", "/usr/local/bin",
+  ...(process.env.PATH ?? "").split(":"), "/usr/bin", "/bin", "/usr/sbin", "/sbin",
+].filter(Boolean).join(":");
+
+let claudeBin: string | null = null;
+export function claudeBinary(): string {
+  // An explicit override is never silently stepped over: being told where the
+  // CLI is and quietly using a different one is worse than failing.
+  const override = process.env.OPENXPLI_CLAUDE;
+  if (override) {
+    if (!existsSync(override)) throw new Error(`OPENXPLI_CLAUDE points at ${override}, which does not exist.`);
+    return override;
+  }
+  if (claudeBin) return claudeBin;
+  const candidates = [join(homedir(), ".local", "bin", "claude"),
+    "/opt/homebrew/bin/claude", "/usr/local/bin/claude"];
+  for (const candidate of candidates) if (existsSync(candidate)) return (claudeBin = candidate);
+  const found = (spawnSync("/usr/bin/which", ["claude"], { encoding: "utf8", env: { ...process.env, PATH: RICH_PATH } }).stdout ?? "").trim();
+  if (found && existsSync(found)) return (claudeBin = found);
+  throw new Error(`The Claude CLI was not found. Looked in ${candidates.join(", ")} and on PATH. Install it, or set OPENXPLI_CLAUDE to its full path.`);
+}
+
 export function ask(prompt: string, timeoutMs = 240_000): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile("claude", ["-p", prompt, "--model", "claude-opus-5", "--tools", "", "--strict-mcp-config", "--mcp-config", "{\"mcpServers\":{}}"], { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 },
-      (err, stdout) => err ? reject(new Error("Text generation failed. Check the Claude CLI sign-in and retry.")) : resolve(stdout));
+    let bin: string;
+    try { bin = claudeBinary(); } catch (e) { reject(e); return; }
+    // stdin is closed rather than left as an unwritten pipe: the CLI otherwise
+    // waits three seconds for input that is never coming, on every call.
+    const child = spawn(bin, ["-p", prompt, "--model", "claude-opus-5", "--tools", "", "--strict-mcp-config", "--mcp-config", "{\"mcpServers\":{}}"],
+      { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, PATH: RICH_PATH } });
+    let out = "", err = "", done = false;
+    const finish = (error?: Error) => { if (done) return; done = true; clearTimeout(timer); error ? reject(error) : resolve(out); };
+    const timer = setTimeout(() => { child.kill("SIGKILL"); finish(new Error(`Text generation timed out after ${Math.round(timeoutMs / 1000)}s.`)); }, timeoutMs);
+    child.stdout.on("data", (d) => { out += d; if (out.length > 8e6) { child.kill("SIGKILL"); finish(new Error("Text generation returned more output than expected.")); } });
+    child.stderr.on("data", (d) => { err += d; });
+    child.on("error", (e) => finish(new Error(`Could not run the Claude CLI at ${bin}: ${e.message}`)));
+    child.on("close", (code) => {
+      if (done) return;
+      if (code === 0) { finish(); return; }
+      const detail = err.trim().split("\n").filter((l) => !/no stdin data received/i.test(l)).join(" ").slice(0, 300);
+      finish(new Error(`Text generation failed (${bin} exited ${code})${detail ? `: ${detail}` : ". Check the Claude CLI sign-in and retry."}`));
+    });
   });
 }
 export function jsonFrom<T>(raw: string, opener: string): T {
@@ -274,7 +318,7 @@ export function safeCrawlUrl(value: string, origin: string): boolean {
       && !/(delete|remove|archive|logout|signout|activate|publish|pause|cancel|unsubscribe)/i.test(url.pathname + url.search);
   } catch { return false; }
 }
-export async function crawl(pb: Playbook, maxPages = 8, options: BrowserWait = {}): Promise<{ url: string; text: string }[]> {
+export async function crawl(pb: Playbook, maxPages = 8, options: BrowserWait = {}): Promise<{ url: string; text: string; ads?: AdEvidence[] }[]> {
   // Request interception is not available on a real browser: bot protection
   // fingerprints Playwright's route.continue() and escalates to a challenge
   // that never clears, so the filter blocks the very page it wants to read.
@@ -293,7 +337,7 @@ export async function crawl(pb: Playbook, maxPages = 8, options: BrowserWait = {
     });
     const seen = new Set<string>([pb.url]);
     const queue = [pb.url];
-    const pages: { url: string; text: string }[] = [];
+    const pages: { url: string; text: string; ads?: AdEvidence[] }[] = [];
     while (queue.length && pages.length < maxPages) {
       if (options.cancelled?.()) throw new BrowserCancelled();
       const url = queue.shift()!;
@@ -311,7 +355,7 @@ export async function crawl(pb: Playbook, maxPages = 8, options: BrowserWait = {
       if (pages.length === 0 && /welcome back|sign in|log ?in/i.test(text)
         && /email address|password|continue with (?:google|apple|microsoft)/i.test(text))
         throw new Error("NEED_SIGNIN: the account read landed on a sign-in page.");
-      pages.push({ url: pg.url(), text });
+      pages.push({ url: pg.url(), text, ads: await pg.evaluate(readAdRows) });
       // discover same-origin nav links, shallow-first
       const links: string[] = await pg.$$eval("a[href]", (as) => as.map((a) => (a as HTMLAnchorElement).href));
       for (const l of links) {

@@ -31,7 +31,12 @@ export function enrollProcess(o) {
     const g = adoptGoal(o.id, o.metric, o.inverse ? 1 : 0, o.guardrails ?? [], "Specified by the operator at enroll.");
     return `enrolled ${o.id} (${o.tool}, goal: ${o.metric}${o.inverse ? " 1/x" : ""} -> ${g}, autonomy: ${autonomy})`;
 }
+// Callers that report to a human want the sentence; callers that need to link
+// the run to something want the id. Same work, two shapes.
 export function startExperiment(processId, field, control, variant, days = 7, status = "running", share, object, baseline, baselineUnit, baselineInverse, valueBasis, power) {
+    return startExperimentDetailed(processId, field, control, variant, days, status, share, object, baseline, baselineUnit, baselineInverse, valueBasis, power).message;
+}
+export function startExperimentDetailed(processId, field, control, variant, days = 7, status = "running", share, object, baseline, baselineUnit, baselineInverse, valueBasis, power) {
     if (!field || !control || !variant)
         throw new Error("start: --field, --control, and --variant are required");
     if (!(days >= 1 && days <= 28))
@@ -87,5 +92,5 @@ export function startExperiment(processId, field, control, variant, days = 7, st
         : aa
             ? `3 arms — holdout ${Math.round(hShare * 100)}% A/A (nothing adopted yet, so it re-tests the measurement), control ${Math.round((1 - hShare - vShare) * 100)}%, variant ${Math.round(vShare * 100)}%`
             : `2 arms — control ${Math.round((1 - vShare) * 100)}%, variant ${Math.round(vShare * 100)}%`;
-    return `started ${id}${object ? ` on “${object}”` : ""}: ${field}: ${control} -> ${variant} (${days}d run; ${arms})`;
+    return { id, message: `started ${id}${object ? ` on “${object}”` : ""}: ${field}: ${control} -> ${variant} (${days}d run; ${arms})` };
 }

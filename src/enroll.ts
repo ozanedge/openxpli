@@ -39,7 +39,12 @@ export function enrollProcess(o: EnrollOpts): string {
   return `enrolled ${o.id} (${o.tool}, goal: ${o.metric}${o.inverse ? " 1/x" : ""} -> ${g}, autonomy: ${autonomy})`;
 }
 
+// Callers that report to a human want the sentence; callers that need to link
+// the run to something want the id. Same work, two shapes.
 export function startExperiment(processId: string, field: string, control: string, variant: string, days = 7, status: "running" | "launching" = "running", share?: number, object?: string, baseline?: number, baselineUnit?: string, baselineInverse?: boolean, valueBasis?: number, power?: unknown): string {
+  return startExperimentDetailed(processId, field, control, variant, days, status, share, object, baseline, baselineUnit, baselineInverse, valueBasis, power).message;
+}
+export function startExperimentDetailed(processId: string, field: string, control: string, variant: string, days = 7, status: "running" | "launching" = "running", share?: number, object?: string, baseline?: number, baselineUnit?: string, baselineInverse?: boolean, valueBasis?: number, power?: unknown): { id: string; message: string } {
   if (!field || !control || !variant) throw new Error("start: --field, --control, and --variant are required");
   if (!(days >= 1 && days <= 28)) throw new Error("start: --days must be 1..28");
   if (share != null && !(share > 0 && share < 1))
@@ -98,5 +103,5 @@ export function startExperiment(processId: string, field: string, control: strin
     : aa
     ? `3 arms — holdout ${Math.round(hShare * 100)}% A/A (nothing adopted yet, so it re-tests the measurement), control ${Math.round((1 - hShare - vShare) * 100)}%, variant ${Math.round(vShare * 100)}%`
     : `2 arms — control ${Math.round((1 - vShare) * 100)}%, variant ${Math.round(vShare * 100)}%`;
-  return `started ${id}${object ? ` on “${object}”` : ""}: ${field}: ${control} -> ${variant} (${days}d run; ${arms})`;
+  return { id, message: `started ${id}${object ? ` on “${object}”` : ""}: ${field}: ${control} -> ${variant} (${days}d run; ${arms})` };
 }
