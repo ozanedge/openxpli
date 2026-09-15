@@ -6,7 +6,7 @@ import { join } from "node:path";
 process.env.OPENXPLI_BROWSER_MODE = "launch";
 process.env.OPENXPLI_DATA_DIR = mkdtempSync(join(tmpdir(), "openxpli-kits-test-"));
 const { openDb } = await import("../dist/db.js");
-const { requestKit, buildKit, retryKit, attachKitImage, recordKitLaunch, getKit, listKits, kitHtml, kitText, generateKitImage } = await import("../dist/kits.js");
+const { requestKit, buildKit, retryKit, attachKitImage, recordKitLaunch, getKit, listKits, kitHtml, kitText, generateKitImage, assembleKit } = await import("../dist/kits.js");
 const { act, jsonFrom, safeCrawlUrl } = await import("../dist/browser-scout.js");
 const { setAutonomy, runAutonomy } = await import("../dist/autonomy.js");
 const { acceptCandidate } = await import("../dist/scout.js");
@@ -14,7 +14,7 @@ const db = openDb();
 db.prepare("INSERT INTO processes (id, tool, metric, autonomy, status, policy, created_at) VALUES ('ads/test', 'ChatGPT Ads', 'CTR', 'auto-merge', 'proposed', '{}', 0)").run();
 db.prepare("INSERT INTO goals (id, source_id, metric, inverse, rationale, status, created_at) VALUES ('goal', 'ads/test', 'CTR', 0, 'Test', 'ratified', 0)").run();
 const url = "https://ads.openai.com/ads/test";
-const evidence = JSON.stringify([{ url, text: 'Signal Search\nFind signals faster\nSearch your logs in one place.\nLearn more\nhttps://example.com\nBlue product diagram', observedAt: Date.now() }]);
+const evidence = JSON.stringify([{ url, text: 'Signal Search\nFind signals faster\nSearch your logs in one place.\nLearn more\nhttps://example.com\nBlue product diagram', observedAt: Date.now(), ads: [{ object: "Signal Search", fields: { headline: "Find signals faster", description: "Search your logs in one place.", CTA: "Learn more", "destination URL": "https://example.com", image: "Blue product diagram" } }] }]);
 const insert = db.prepare("INSERT INTO candidates (id, source_id, field, control_value, variant_value, metric, inverse, rationale, expected_multiple, status, created_at, evidence) VALUES (?, 'ads/test', ?, ?, ?, 'CTR', 0, 'A focused creative test.', 1.05, 'proposed', 0, ?)");
 insert.run("headline", "headline", "Find signals faster", "Find the signal in your logs", evidence);
 insert.run("image", "image", "Blue product diagram", "A clean diagram connecting logs to a clear answer", evidence);
@@ -31,6 +31,22 @@ const draft = {
   ],
   imagePrompt: "A clean blue product diagram illustrating log search. No text or unsupported claims.", checks: ["Confirm the source ad and placement dimensions."],
 };
+// Two ads share a page, but their values must never be mixed.
+const candidate = db.prepare("SELECT * FROM candidates WHERE id = 'image'").get();
+const pages = JSON.parse(evidence);
+pages[0].ads.push({ object: "Other ad", fields: { headline: "Other headline", CTA: "Buy now" } });
+pages[0].text += "\nOther ad\nOther headline\nBuy now";
+const mixedDraft = { ...draft, fields: [{ label: "CTA", value: "Buy now", source: url }] };
+const assemble = (source, output = draft) => assembleKit({ ...candidate, evidence: JSON.stringify(source) }, {}, output);
+assert.equal(assemble(pages, mixedDraft).fields.find(f => f.label === "CTA").value, null);
+assert.equal(assemble(pages).fields.find(f => f.label === "CTA").value, "Learn more");
+assert.equal(assemble(pages, { ...draft, object: "Signal" }).object, "Source ad needs confirmation");
+assert.equal(assemble(pages, { ...draft, fields: [{ label: "CTA", value: "Learn", source: url }] }).fields.find(f => f.label === "CTA").value, null);
+assert.equal(assemble(pages, { ...draft, fields: [{ label: "CTA", value: "Learn more", source: "https://wrong.example" }] }).fields.find(f => f.label === "CTA").value, null);
+assert.ok(assemble([{ ...pages[0], ads: undefined }]).fields.every(f => f.value === null));
+assert.ok(assemble([pages[0], pages[0]]).fields.every(f => f.value === null));
+const wrongControl = assembleKit({ ...candidate, control_value: "Other headline", evidence: JSON.stringify(pages) }, {}, draft);
+assert.ok(wrongControl.checks.some(check => check.includes("current control value")));
 const png = readFileSync(new URL("../assets/logo/openxpli-lockup-horizontal.png", import.meta.url));
 let textCalls = 0, imageCalls = 0;
 const providers = {
@@ -77,13 +93,19 @@ assert.throws(() => recordKitLaunch(h.id, "", true), /launch details/);
 ready = recordKitLaunch(h.id, "Control A, variant B; manually started at 10:00 UTC", true);
 assert.equal(ready.state, "launched");
 assert.equal(recordKitLaunch(h.id, "duplicate click", true).launch_note, ready.launch_note);
-assert.equal(db.prepare("SELECT COUNT(*) n FROM experiments").get().n, 0);
+assert.ok(ready.launched_at, "save when the user reported the launch");
+assert.equal(ready.experiment_id, null, "a launch report must not enroll an experiment");
+assert.equal(recordKitLaunch(h.id, "duplicate click", true).launched_at, ready.launched_at);
+assert.equal(db.prepare("SELECT COUNT(*) n FROM experiments").get().n, 0,
+  "initial and repeated launch reports must not create runs or enable measurement");
 assert.throws(() => attachKitImage(h.id, png), /before attaching/);
 await assert.rejects(() => act({}, { url: "https://ads.openai.com", name: "ads" }), /Browser writes are disabled/);
 assert.equal(existsSync(join(process.env.OPENXPLI_DATA_DIR, "receipts")), false);
 assert.throws(() => setAutonomy("ads/test", "auto-start"), /not available/);
+const beforeAutonomy = db.prepare("SELECT COUNT(*) n FROM experiments").get().n;
 runAutonomy();
-assert.equal(db.prepare("SELECT COUNT(*) n FROM experiments").get().n, 0);
+assert.equal(db.prepare("SELECT COUNT(*) n FROM experiments").get().n, beforeAutonomy,
+  "autonomy must never start a run on its own");
 db.prepare("UPDATE goals SET status = 'superseded' WHERE id = 'goal'").run();
 assert.throws(() => recordKitLaunch(imageKit.id, "IDs", true), /goal changed/);
 db.prepare("UPDATE goals SET status = 'ratified' WHERE id = 'goal'").run();

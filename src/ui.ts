@@ -16,7 +16,7 @@ import { ratifyGoal, regoal, alternativeGoals, ratifiedGoal, parseGuardrails, se
 import { outcomeCounts, ensureOutcomesBackfilled } from "./outcomes.js";
 import { splitFor } from "./traffic.js";
 import { annualValue, type ValueModel } from "./value.js";
-import { activeLearningJob, signalLearningJob } from "./learning-jobs.js";
+import { activeLearningJob, signalLearningJob, signedInForTool } from "./learning-jobs.js";
 import { playbookFor, startSignin } from "./browser-scout.js";
 import { listKits, getKit, requestKit, retryKit, attachKitImage, recordKitLaunch, kitHtml, kitText, kitImage } from "./kits.js";
 import { adoptedState, type AdoptedState } from "./adopted.js";
@@ -134,6 +134,7 @@ function processes(db: ReturnType<typeof openDb>) {
     p.kits = listKits(p.id as string);
     p.execution_mode = "manual";
     p.can_learn = !!playbookFor(p.tool as string);
+    p.signed_in_at = signedInForTool(p.tool as string);
     const browserJob = activeLearningJob(p.id as string);
     const learning = db.prepare("SELECT content FROM knowledge WHERE source_id = ? AND key = 'learning-status'").get(p.id) as { content: string } | undefined;
     p.learning = learning ? { ...JSON.parse(learning.content), active: !!browserJob, kind: browserJob?.kind ?? null,

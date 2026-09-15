@@ -54,15 +54,42 @@ try {
   ]);
   assert.equal(file.suggestedFilename(), "kit.html");
   await page.locator(`[data-kit-action="launch"][data-kit="${kit.id}"]`).click();
+  assert.match(await page.locator("body").innerText(), /does not verify activation, create a running experiment, or start automatic measurement/);
   await page.locator("#kit-launch-note").fill("Control 12, variant 13; started at 11:00 UTC");
   await page.locator("#kit-launched-check").check();
   await page.getByRole("button", { name: "Record launch", exact: true }).click();
-  await page.getByText("Your launch notes: Control 12, variant 13; started at 11:00 UTC").waitFor();
+  // Dialogs are captured and dismissed, so a failed launch would otherwise time
+  // out here with its reason hidden. Say what the page actually reported.
+  // The console has to show the launch straight away. It used to re-render from
+  // the copy of /api/processes fetched BEFORE the launch, so the kit still read
+  // "ready" until a reload — and the 2s poll is not
+  // running once nothing is queued, so no reload ever came on its own.
+  // Asserted on rendered content rather than visibility: the launched kit moves
+  // into the collapsed "Launched kits" list, so the note is present and correct
+  // but has no box until the card is opened.
+  await page.waitForFunction(
+    () => document.body.innerHTML.includes("Control 12, variant 13; started at 11:00 UTC"),
+    null, { timeout: 15000 },
+  ).catch(async (e) => {
+    const st = await (await fetch(base + "/api/processes")).json();
+    const kits = (st[0].kits || []).map((k) => `${k.id.slice(0, 8)}:${k.state}:${k.experiment_id ?? "-"}`).join(", ");
+    throw new Error(`the console did not show the launch. dialogs: ${errors.join(" | ") || "(none)"}; kits: ${kits}; runs: ${st[0].experiments.length}\n${e.message}`);
+  });
   const after = await (await fetch(base + "/api/processes")).json();
-  assert.equal(after[0].experiments.length, 0, "recording a launch must not start synthetic monitoring");
+  assert.equal(after[0].experiments.length, 0, "a launch report must not create a running experiment");
+  assert.ok((after[0].kits || []).some((k) => k.id === kit.id && k.state === "launched" && !k.experiment_id),
+    "the launch confirmation must be saved without enrolling a run");
+  const obs = await (await fetch(base + "/api/summary")).json();
+  assert.ok(obs, "summary must still render without a run");
   await page.locator(`[data-kit-action="toggle"][data-kit="${kit.id}"]`).scrollIntoViewIfNeeded();
   await page.screenshot({ path: "/tmp/openxpli-kits-console.png", fullPage: true });
   const exportPage = await context.newPage();
+  const { readAdRows } = await import("../dist/kit-evidence.js");
+  await exportPage.setContent('<table><tr><th>Ad name</th><th>Headline</th><th>CTA</th></tr><tr><td>Ad A</td><td>Alpha</td><td>Learn more</td></tr><tr><td>Ad B</td><td>Beta</td><td>Buy now</td></tr></table><table><tr><td>Unlabeled ad</td><td>Ignore me</td></tr></table>');
+  assert.deepEqual(await exportPage.evaluate(readAdRows), [
+    { object: "Ad A", fields: { Headline: "Alpha", CTA: "Learn more" } },
+    { object: "Ad B", fields: { Headline: "Beta", CTA: "Buy now" } },
+  ]);
   await exportPage.setContent(await (await fetch(`${base}/api/kits/file?id=${kit.id}&name=kit.html`)).text());
   await exportPage.screenshot({ path: "/tmp/openxpli-kit-export.png", fullPage: true });
   await page.setViewportSize({ width: 768, height: 1000 });

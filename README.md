@@ -1,5 +1,10 @@
 # OpenXPLI
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo/openxpli-lockup-horizontal-inverse.svg">
+  <img src="assets/logo/openxpli-lockup-horizontal.svg" alt="OpenXPLI — interlocking ink and blue X" width="280">
+</picture>
+
 **Open experiments, loops, and iteration.** OpenXPLI learns a business tool through
 the browser and prepares an experiment kit: copy, creative, source observations,
 and instructions you can use to set it up yourself.
@@ -63,7 +68,7 @@ Choose **Prepare experiment kit** beside a suggestion. The saved kit includes:
 
 A kit changes **one variable**. New copy belongs in a copy test; a new image
 belongs in an image test with unchanged copy. Unknown account values remain
-explicitly unknown. Existing strings are checked against the cited observations.
+explicitly unknown. Existing strings must match labeled fields on one unambiguous source ad in the cited observations. Learning captures labeled ad-table rows; older page-only evidence and unsupported layouts leave those values unconfirmed for manual review.
 A draft still requires your review of claims, placement requirements, and settings.
 
 After setting it up in the ad tool, **I launched this myself** records your notes

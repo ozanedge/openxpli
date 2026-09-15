@@ -194,6 +194,8 @@ export function openDb(): Database.Database {
   CREATE UNIQUE INDEX IF NOT EXISTS one_learning_job_per_connector ON learning_jobs(source_id)
     WHERE status IN ('queued','running');`);
   ensureColumn(db, "candidates", "evidence", "TEXT");
+  // Preserve links from older launch tracking; new reports do not create runs.
+  ensureColumn(db, "kits", "experiment_id", "TEXT");
   // In-place upgrades for databases created by older versions.
   ensureColumn(db, "observations", "phase", "TEXT NOT NULL DEFAULT 'run'");
   ensureColumn(db, "experiments", "record_id", "TEXT");
