@@ -72,7 +72,7 @@ try {
   assert.equal(await evidenceDialog.count(),0);
   await page.evaluate(()=>{window.__procs[0].candidates=window.__evidenceCandidates;});
   await page.setViewportSize({width:1440,height:1100});
-  const context=page.locator('.context-details').filter({hasText:"Your goal & boundaries"});
+  const context=page.locator('.context-details[data-disclosure^="settled-"]');
   await context.locator('summary').click();
   await page.evaluate(()=>{const copy=structuredClone(window.__procs);copy[0].tool="ChatGPT Ads updated";renderProcesses(copy);});
   assert.equal(await context.getAttribute("open"),"");
@@ -122,18 +122,18 @@ try {
   await page.getByRole("dialog").waitFor({state:"detached"});
   assert.equal(await page.locator('[data-workspace-section="kits"]').count(),0);
   const history=page.locator('[data-workspace-section="kit-history"]');
-  assert.equal(await history.getAttribute("open"),null);
+  assert.equal(await history.locator("xpath=ancestor::details[1]").getAttribute("open"),null);
   assert.equal(await page.getByRole("link",{name:"Download complete kit",exact:true}).isVisible(),false);
   await page.locator('.focus-card [data-workspace-jump="kit-history"]').click();
   if(await history.locator('[data-kit-action="toggle"]').getAttribute("aria-expanded")!=="true") await history.locator('[data-kit-action="toggle"]').click();
   await history.getByText("Your launch notes: Control A, variant B").waitFor();
   await history.getByRole("link",{name:"Download complete kit",exact:true}).waitFor();
   await page.evaluate(()=>refresh());
-  assert.equal(await history.getAttribute("open"),"");
+  assert.equal(await history.locator("xpath=ancestor::details[1]").getAttribute("open"),"");
   // A fresh visit keeps launch history collapsed.
   await page.reload();
-  await history.waitFor();
-  assert.equal(await history.getAttribute("open"),null);
+  await history.waitFor({state:"attached"});
+  assert.equal(await history.locator("xpath=ancestor::details[1]").getAttribute("open"),null);
   accounts.splice(0);
   await page.evaluate(()=>refresh());
   await page.getByRole("heading",{name:"Your next good idea starts here."}).waitFor();
